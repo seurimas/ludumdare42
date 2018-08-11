@@ -1,14 +1,7 @@
 use ggez::*;
 use specs::*;
 use state::*;
-
-#[derive(Debug)]
-pub enum Direction {
-    Up,
-    Down,
-    Left,
-    Right,
-}
+use input::Direction;
 
 fn move_by(loc: (u32, u32), direction: &Direction) -> Option<(u32, u32)> {
     match direction {
@@ -48,23 +41,11 @@ fn move_in_level(loc: (u32, u32), direction: &Direction, level: &Level) -> Optio
     }
 }
 
-pub fn handle_arrow(ctx: &mut Context, world: &mut World, play_state: &PlayState, direction: Direction) {
-    match play_state {
-        PlayState::InWorld => {
-            println!("{:?}", direction);
-            move_player(ctx, world, &direction);
-        },
-        _ => {
-
-        }
-    }
-}
-
-fn move_player(ctx: &mut Context, world: &mut World, direction: &Direction) {
+pub fn move_player(ctx: &mut Context, world: &mut World, direction: &Direction) {
     let level = world.read_resource::<Level>();
     let mut entities = world.write_storage::<WorldEntity>();
     for mut ent in (&mut entities).join() {
-        if ent.entity_type == 0 {
+        if ent.entity_type == EntityType::Player {
             match move_in_level(ent.location, &direction, &level) {
                 Some(next) => { ent.location = next; },
                 _ => {}

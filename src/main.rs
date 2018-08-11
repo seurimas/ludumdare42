@@ -12,8 +12,69 @@ use ggez::event::*;
 use render::render_world;
 use state::*;
 use input::*;
+use std::collections::*;
 
 const SCREEN_SIZE: (u32, u32) = (800, 600);
+
+type WorldEntities<'a> = (
+    Entities<'a>,
+    ReadStorage<'a, WorldEntity>,
+);
+
+fn find_encounter((entities, world_entities): WorldEntities) -> Option<Entity> {
+    let mut player_loc = (0, 0);
+    for world_entity in (&world_entities).join() {
+        if world_entity.entity_type == EntityType::Player {
+            player_loc = world_entity.location;
+        }
+    }
+    let mut found = None;
+    for (entity, world_entity) in (&*entities, &world_entities).join() {
+        if world_entity.entity_type == EntityType::Encounter
+            && world_entity.location == player_loc {
+            found = Some(entity);
+        }
+    }
+    found
+}
+
+fn get_encounter(world: &World, entity: Entity) -> Option<Encounter> {
+    let encounters = world.read_storage::<Encounter>();
+    match encounters.get(entity) {
+        Some(encounter) => {
+            Some(encounter.clone())
+        },
+        None => None
+    }
+}
+
+fn initialize_encounter(ctx: &mut Context, world: &mut World, entity: Entity) {
+    match get_encounter(world, entity) {
+        Some(encounter) => {
+            let mut battle_state = world.write_resource::<BattleState>();
+            battle_state.enemies = encounter.spirits.clone();
+        },
+        _ => {
+            println!("BAD BAD BAD");
+        },
+    }
+}
+
+fn find_encounters(
+    ctx: &mut Context,
+    world: &mut World,
+) -> bool {
+    let encounter = world.exec(find_encounter);
+    match encounter {
+        Some(entity) => {
+            initialize_encounter(ctx, world, entity);
+            true
+        },
+        None => {
+            false
+        }
+    }
+}
 
 pub struct CameraSystem;
 impl<'a> System<'a> for CameraSystem {
@@ -24,7 +85,7 @@ impl<'a> System<'a> for CameraSystem {
 
     fn run(&mut self, (mut camera, entities): Self::SystemData) {
         for entity in (&entities).join() {
-            if entity.entity_type == 0 {
+            if entity.entity_type == EntityType::Player {
                 if entity.location.0 >= camera.width / 2 {
                     let x_offset = entity.location.0 - camera.width / 2;
                     camera.x_offset = x_offset;
@@ -46,11 +107,41 @@ impl<'a, 'b> GameState<'a, 'b> {
     fn new(ctx: &mut Context) -> Self {
         let mut world = World::new();
         world.register::<WorldEntity>();
+        world.register::<Encounter>();
+        world.register::<Spirit>();
         world.add_resource(Level::new());
         world.add_resource(Camera::new(SCREEN_SIZE.0, SCREEN_SIZE.1));
+        world.add_resource(BattleState::new());
 
         world.create_entity()
-            .with(WorldEntity { location: (1, 1), entity_type: 0 })
+            .with(WorldEntity { location: (1, 1), entity_type: EntityType::Player })
+            .build();
+
+        let mut spirits = Vec::new();
+        let mut moves = Vec::new();
+        moves.push(Move {
+            name: "Attack".to_string(),
+        });
+        spirits.push(Spirit {
+            name: "Mote".to_string(),
+            health: 10,
+            max_health: 10,
+            moves: moves.clone(),
+        });
+        spirits.push(Spirit {
+            name: "Wisp".to_string(),
+            health: 10,
+            max_health: 10,
+            moves: moves.clone(),
+        });
+        world.create_entity()
+            .with(WorldEntity {
+                location: (1, 1),
+                entity_type: EntityType::Encounter
+            })
+            .with(Encounter {
+                spirits,
+            })
             .build();
 
         let dispatcher = DispatcherBuilder::new()
@@ -110,6 +201,14 @@ impl<'a, 'b> EventHandler for GameState<'a, 'b> {
                 _ => {
 
                 }
+            }
+            match self.play_state {
+                PlayState::InWorld => {
+                    if find_encounters(ctx, &mut self.world) {
+                        self.play_state = PlayState::InBattle;
+                    }
+                },
+                _ => {}
             }
         }
     }

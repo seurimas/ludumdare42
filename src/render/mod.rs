@@ -12,9 +12,12 @@ use self::combat::*;
 
 pub fn render_world(ctx: &mut Context, world: &World, play_state: &PlayState) -> GameResult<()> {
     match play_state {
-        InWorld => {
+        PlayState::InWorld => {
             render_in_world(ctx, world)
         },
+        PlayState::InBattle => {
+            render_combat(ctx, world)
+        }
         _ => {
             Ok(())
         }

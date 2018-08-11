@@ -5,8 +5,39 @@ use std::collections::HashMap;
 pub const TILE_SIZE: u32 = 32;
 pub const CHAR_SIZE: u32 = 24;
 
-pub struct Encounter {
+#[derive(Debug, Clone)]
+pub struct Move {
+    pub name: String,
+}
 
+#[derive(Component, Debug, Clone)]
+pub struct Spirit {
+    pub name: String,
+    pub max_health: u32,
+    pub health: u32,
+    pub moves: Vec<Move>
+}
+
+#[derive(Default, Debug)]
+pub struct BattleState {
+    pub allies: Vec<Spirit>,
+    pub enemies: Vec<Spirit>,
+    pub menu_item: i32,
+}
+
+impl BattleState {
+    pub fn new() -> Self {
+        BattleState {
+            allies: Vec::new(),
+            enemies: Vec::new(),
+            menu_item: 0,
+        }
+    }
+}
+
+#[derive(Debug, Component, Clone)]
+pub struct Encounter {
+    pub spirits: Vec<Spirit>,
 }
 
 #[derive(Default)]
@@ -28,10 +59,17 @@ impl Camera {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub enum EntityType {
+    Player,
+    Encounter,
+    Stairs,
+}
+
 #[derive(Debug, Component)]
 pub struct WorldEntity {
     pub location: (u32, u32),
-    pub entity_type: u32,
+    pub entity_type: EntityType,
 }
 
 pub struct Tile {
