@@ -3,15 +3,9 @@ use specs::*;
 use std::collections::HashMap;
 use input::Direction;
 
-pub const TILE_SIZE: u32 = 32;
-pub const CHAR_SIZE: u32 = 24;
-
-#[derive(Debug, Clone)]
-pub enum MoveTargetType {
-    Enemy,
-    Ally,
-    None,
-}
+pub const SCREEN_SIZE: (u32, u32) = (632, 368);
+pub const TILE_SIZE: u32 = 64;
+pub const CHAR_SIZE: u32 = 56;
 
 #[derive(Debug, Clone)]
 pub enum MoveType {
@@ -27,12 +21,33 @@ pub struct Move {
     pub effect: MoveType,
 }
 
+#[derive(PartialEq, Debug, Clone)]
+pub enum SpiritType {
+    Fire(u32),
+    Water(u32),
+    Slime(u32),
+    Light(u32),
+    Dark(u32),
+}
+
 #[derive(Component, Debug, Clone)]
 pub struct Spirit {
-    pub name: String,
+    pub element: SpiritType,
     pub max_health: u32,
     pub health: u32,
     pub moves: [Move; 4],
+}
+
+impl Spirit {
+    pub fn level(&self) -> u32 {
+        match self.element {
+            SpiritType::Fire(level) => level,
+            SpiritType::Water(level) => level,
+            SpiritType::Slime(level) => level,
+            SpiritType::Light(level) => level,
+            SpiritType::Dark(level) => level,
+        }
+    }
 }
 
 #[derive(Component, Debug)]
@@ -48,18 +63,22 @@ pub struct Player {
 #[derive(Default, Debug)]
 pub struct BattleState {
     pub in_combat: bool,
+    pub retreating: bool,
     pub activate: bool,
     pub combat_move: Option<usize>,
     pub active_entity: Option<Entity>,
+    pub encounter_entity: Option<Entity>,
 }
 
 impl BattleState {
     pub fn new() -> Self {
         BattleState {
             in_combat: true,
+            retreating: false,
             activate: false,
             combat_move: None,
             active_entity: None,
+            encounter_entity: None,
         }
     }
     pub fn want_attack(&mut self) {
@@ -156,12 +175,13 @@ impl Level {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum PlayState {
     InWorld,
     InBattle,
     Combining,
     GameOver,
+    Looting(Vec<SpiritType>),
     MainMenu,
 }
 
@@ -170,6 +190,20 @@ pub enum InputState {
     Rest,
     Move(Direction),
     Select,
+    Escape,
+}
+
+#[derive(Clone)]
+pub struct InventoryState {
+    pub index: usize,
+}
+
+impl InventoryState {
+    pub fn new() -> Self {
+        InventoryState {
+            index: 0,
+        }
+    }
 }
 
 pub struct GameState<'a, 'b> {

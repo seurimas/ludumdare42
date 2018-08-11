@@ -44,13 +44,13 @@ fn move_in_level(loc: (u32, u32), direction: &Direction, level: &Level) -> Optio
 pub struct HandleMove;
 impl<'a> System<'a> for HandleMove {
     type SystemData = (
-        ReadExpect<'a, PlayState>,
+        WriteExpect<'a, PlayState>,
         WriteExpect<'a, InputState>,
         ReadExpect<'a, Level>,
         WriteStorage<'a, WorldEntity>,
         ReadStorage<'a, Player>,
     );
-    fn run(&mut self, (play_state, mut input_state, level, mut world_entities, players): Self::SystemData) {
+    fn run(&mut self, (mut play_state, mut input_state, level, mut world_entities, players): Self::SystemData) {
         match (play_state.clone(), input_state.clone()) {
             (PlayState::InWorld, InputState::Move(direction)) => {
                 for (mut world_entity, player) in (&mut world_entities, &players).join() {
@@ -61,6 +61,10 @@ impl<'a> System<'a> for HandleMove {
                 }
                 *input_state = InputState::Rest;
             },
+            (PlayState::InWorld, InputState::Escape) => {
+                *input_state = InputState::Rest;
+                *play_state = PlayState::Combining;
+            }
             _ => {}
         }
     }

@@ -6,7 +6,7 @@ use state::*;
 
 const ALLY_BARS: (i32, i32) = (100, 100);
 const ENEMY_BARS: (i32, i32) = (400, 100);
-const BAR_SIZE: (i32, i32) = (96, 32);
+const BAR_SIZE: (i32, i32) = (96, 8);
 const BAR_OFFSET: i32 = 8;
 const MOVE_AREAS: [(f32, f32); 4] = [
     (200.0, 520.0),

@@ -16,8 +16,6 @@ use input::*;
 use systems::*;
 use std::collections::*;
 
-const SCREEN_SIZE: (u32, u32) = (800, 600);
-
 pub struct CameraSystem;
 impl<'a> System<'a> for CameraSystem {
     type SystemData = (
@@ -55,8 +53,9 @@ impl<'a, 'b> GameState<'a, 'b> {
         world.add_resource(Level::new());
         world.add_resource(Camera::new(SCREEN_SIZE.0, SCREEN_SIZE.1));
         world.add_resource(BattleState::new());
-        world.add_resource(PlayState::InWorld);
+        world.add_resource(PlayState::Combining);
         world.add_resource(InputState::Rest);
+        world.add_resource(InventoryState::new());
 
         let mut spirits = Vec::new();
         let moves = [
@@ -78,13 +77,43 @@ impl<'a, 'b> GameState<'a, 'b> {
             },
         ];
         spirits.push(Spirit {
-            name: "Mote".to_string(),
+            element: SpiritType::Fire(0),
             health: 10,
             max_health: 10,
             moves: moves.clone(),
         });
         spirits.push(Spirit {
-            name: "Wisp".to_string(),
+            element: SpiritType::Fire(0),
+            health: 10,
+            max_health: 10,
+            moves: moves.clone(),
+        });
+        spirits.push(Spirit {
+            element: SpiritType::Fire(0),
+            health: 10,
+            max_health: 10,
+            moves: moves.clone(),
+        });
+        spirits.push(Spirit {
+            element: SpiritType::Fire(0),
+            health: 10,
+            max_health: 10,
+            moves: moves.clone(),
+        });
+        spirits.push(Spirit {
+            element: SpiritType::Fire(0),
+            health: 10,
+            max_health: 10,
+            moves: moves.clone(),
+        });
+        spirits.push(Spirit {
+            element: SpiritType::Fire(0),
+            health: 10,
+            max_health: 10,
+            moves: moves.clone(),
+        });
+        spirits.push(Spirit {
+            element: SpiritType::Light(0),
             health: 10,
             max_health: 10,
             moves: moves.clone(),
@@ -96,7 +125,7 @@ impl<'a, 'b> GameState<'a, 'b> {
             .build();
         world.create_entity()
             .with(WorldEntity {
-                location: (1, 1),
+                location: (2, 2),
             })
             .with(Encounter {
                 spirits,
@@ -106,9 +135,11 @@ impl<'a, 'b> GameState<'a, 'b> {
         let dispatcher = DispatcherBuilder::new()
             .with(HandleMove, "move", &[])
             .with(HandleBattleMenu, "battle_menu", &[])
+            .with(HandleInventory, "inventory", &[])
             .with(CameraSystem, "camera", &[])
             .with(FindEncounters, "find", &[])
             .with(WatchAttack, "attack", &[])
+            .with(WatchSpirits, "spirits", &[])
             .build();
 
         GameState {
@@ -131,7 +162,7 @@ impl<'a, 'b> EventHandler for GameState<'a, 'b> {
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
         graphics::clear(ctx);
-        render_world(ctx, &self.world)?;
+        render_world(ctx, &mut self.world)?;
         graphics::present(ctx);
         ggez::timer::yield_now();
         Ok(())
@@ -160,6 +191,9 @@ impl<'a, 'b> EventHandler for GameState<'a, 'b> {
                 },
                 Keycode::Space => {
                     self.world.add_resource(InputState::Select);
+                },
+                Keycode::Backspace => {
+                    self.world.add_resource(InputState::Escape);
                 },
                 _ => {
 

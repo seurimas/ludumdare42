@@ -2,10 +2,6 @@ use ggez::*;
 use specs::*;
 use state::*;
 
-type WorldEntities<'a> = (
-    Entities<'a>,
-    ReadStorage<'a, WorldEntity>,
-);
 pub struct FindEncounters;
 impl<'a> System<'a> for FindEncounters {
     type SystemData = (
@@ -27,8 +23,9 @@ impl<'a> System<'a> for FindEncounters {
                 player = Some(player_comp.clone());
             }
             if let Some(player) = player {
-                for (world_entity, encounter) in (&world_entities, &encounters).join() {
+                for (entity, world_entity, encounter) in (&*entities, &world_entities, &encounters).join() {
                     if world_entity.location == player_loc {
+                        battle_state.encounter_entity = Some(entity);
                         *play_state = PlayState::InBattle;
                         for spirit in encounter.spirits.clone() {
                             (*entities).build_entity()
