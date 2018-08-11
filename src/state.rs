@@ -181,7 +181,10 @@ pub enum PlayState {
     InBattle,
     Combining,
     GameOver,
-    Looting(Vec<SpiritType>),
+    Looting {
+        captured: Vec<SpiritType>,
+        lost: Vec<SpiritType>,
+    },
     MainMenu,
 }
 

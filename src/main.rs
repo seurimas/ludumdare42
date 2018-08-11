@@ -9,11 +9,14 @@ mod input;
 mod systems;
 use specs::*;
 use ggez::*;
+use ggez::graphics::*;
+use ggez::graphics::spritebatch::*;
 use ggez::event::*;
 use render::render_world;
 use state::*;
 use input::*;
 use systems::*;
+use std::path::Path;
 use std::collections::*;
 
 pub struct CameraSystem;
@@ -149,6 +152,8 @@ impl<'a, 'b> GameState<'a, 'b> {
     }
 
     fn init(&mut self, ctx: &mut Context) -> GameResult<()> {
+        let image = Image::new(ctx, &"/Sprites.png")?;
+        self.world.add_resource(SpriteBatch::new(image));
         Ok(())
     }
 }
@@ -162,7 +167,14 @@ impl<'a, 'b> EventHandler for GameState<'a, 'b> {
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
         graphics::clear(ctx);
+        self.world.write_resource::<SpriteBatch>().clear();
         render_world(ctx, &mut self.world)?;
+        graphics::draw(
+            ctx,
+            &*self.world.read_resource::<SpriteBatch>(),
+            Point2::new(0.0, 0.0),
+            0.0,
+        )?;
         graphics::present(ctx);
         ggez::timer::yield_now();
         Ok(())
@@ -210,6 +222,7 @@ fn main() {
         .build().expect("Failed to build ggez context");
 
     graphics::set_background_color(ctx, [0.0, 0.0, 0.0, 1.0].into());
+    graphics::set_default_filter(ctx, FilterMode::Nearest);
 
     let state = &mut GameState::new(ctx);
     state.init(ctx).expect("Failed to load resources");

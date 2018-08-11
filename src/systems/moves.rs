@@ -61,9 +61,10 @@ impl<'a> System<'a> for WatchSpirits {
         Entities<'a>,
         ReadStorage<'a, Spirit>,
         ReadStorage<'a, PlayerSpirit>,
+        WriteStorage<'a, Player>,
     );
 
-    fn run(&mut self, (mut battle_state, mut play_state, entities, spirits, player_spirits): Self::SystemData) {
+    fn run(&mut self, (mut battle_state, mut play_state, entities, spirits, player_spirits, players): Self::SystemData) {
         if *play_state == PlayState::InBattle {
             let mut players_alive = false;
             for (spirit, _player_spirit) in (&spirits, &player_spirits).join() {
@@ -77,16 +78,35 @@ impl<'a> System<'a> for WatchSpirits {
                 ()
             }
             let mut enemies_alive = false;
+            let mut captured_enemies = Vec::new();
             for (spirit, ()) in (&spirits, !&player_spirits).join() {
                 if spirit.health > 0 {
                     enemies_alive = true;
                 }
+                captured_enemies.push(spirit.element.clone());
             }
             if !enemies_alive  {
-                *play_state = PlayState::InWorld;
+                let mut captured = Vec::new();
+                let mut lost = Vec::new();
+                for player in (&players).join() {
+                    for captured_spirit in captured_enemies.iter() {
+                        if player.spirits.len() < 25 {
+                            captured.push(captured_spirit.clone());
+                        } else {
+                            lost.push(captured_spirit.clone());
+                        }
+                    }
+                }
+                *play_state = PlayState::Looting {
+                    captured,
+                    lost,
+                };
                 battle_state.in_combat = false;
                 if let Some(encounter) = battle_state.encounter_entity {
                     (*entities).delete(encounter);
+                }
+                for (entity, spirit, ()) in (&*entities, &spirits, !&player_spirits).join() {
+                    (*entities).delete(entity);
                 }
             }
         }

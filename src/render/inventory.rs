@@ -1,6 +1,7 @@
 use ggez::*;
 use specs::*;
 use ggez::graphics::*;
+use ggez::graphics::spritebatch::*;
 use state::*;
 use render::*;
 
@@ -24,8 +25,9 @@ pub fn render_combining(ctx: &mut Context, world: &mut World) -> GameResult<()> 
     type SystemData<'a> = (
         ReadStorage<'a, Player>,
         ReadExpect<'a, InventoryState>,
+        WriteExpect<'a, SpriteBatch>,
     );
-    world.exec(|(players, inventory_state): SystemData| -> GameResult<()> {
+    world.exec(|(players, inventory_state, mut spritebatch): SystemData| -> GameResult<()> {
         let font = Font::default_font()?;
         for player in (&players).join() {
             for y in 0..INVENTORY_LAYOUT.0 {
@@ -43,29 +45,13 @@ pub fn render_combining(ctx: &mut Context, world: &mut World) -> GameResult<()> 
                         SPIRIT_SIZE.1,
                     ))?;
                     if let Some(spirit) = player.spirits.get(index as usize) {
-                        match spirit.element {
-                            SpiritType::Fire(size) => {
-                                set_color(ctx, [1.0, 0.0, 0.0, 1.0].into())?;
-                            },
-                            SpiritType::Water(size) => {
-                                set_color(ctx, [0.0, 1.0, 1.0, 1.0].into())?;
-                            },
-                            SpiritType::Slime(size) => {
-                                set_color(ctx, [1.0, 1.0, 0.0, 1.0].into())?;
-                            },
-                            SpiritType::Light(size) => {
-                                set_color(ctx, [1.0, 1.0, 0.6, 1.0].into())?;
-                            },
-                            SpiritType::Dark(size) => {
-                                set_color(ctx, [1.0, 0.0, 1.0, 1.0].into())?;
-                            },
-                        }
-                        rectangle(ctx, DrawMode::Fill, Rect::new_i32(
+                        set_color(ctx, [1.0, 1.0, 1.0, 1.0].into())?;
+                        spritebatch.add(inventory_sprite(&spirit.element,
                             SPIRIT_LOCATION.0 + (SPIRIT_SIZE.0 + SPIRIT_BUFFER.0) * x,
                             SPIRIT_LOCATION.1 + (SPIRIT_SIZE.1 + SPIRIT_BUFFER.1) * y,
                             SPIRIT_SIZE.0,
                             SPIRIT_SIZE.1,
-                        ))?;
+                        ));
                         set_color(ctx, [1.0, 1.0, 1.0, 1.0].into())?;
                         rectangle(ctx, DrawMode::Line(4.0), Rect::new_i32(
                             DESCRIPTION_AREA.0,

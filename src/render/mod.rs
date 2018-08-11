@@ -4,6 +4,7 @@ mod combat;
 mod inventory;
 mod text;
 mod looting;
+mod sprites;
 
 use state::PlayState;
 use ggez::*;
@@ -15,6 +16,7 @@ use self::debug::*;
 use self::combat::*;
 use self::inventory::*;
 use self::looting::*;
+use self::sprites::*;
 
 pub fn render_world(ctx: &mut Context, world: &mut World) -> GameResult<()> {
     let play_state = world.read_resource::<PlayState>().clone();
@@ -29,8 +31,8 @@ pub fn render_world(ctx: &mut Context, world: &mut World) -> GameResult<()> {
         PlayState::Combining => {
             render_combining(ctx, world)
         },
-        PlayState::Looting(spirits) => {
-            render_looting(ctx, world, &spirits)
+        PlayState::Looting { captured, lost } => {
+            render_looting(ctx, world, &captured)
         },
         _ => {
             Ok(())
