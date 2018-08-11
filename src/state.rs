@@ -1,13 +1,30 @@
 use ggez::*;
 use specs::*;
 use std::collections::HashMap;
+use input::Direction;
 
 pub const TILE_SIZE: u32 = 32;
 pub const CHAR_SIZE: u32 = 24;
 
 #[derive(Debug, Clone)]
+pub enum MoveTargetType {
+    Enemy,
+    Ally,
+    None,
+}
+
+#[derive(Debug, Clone)]
+pub enum MoveType {
+    DamageMany(u32),
+    DamageOne(u32),
+    Heal(u32),
+    Defend(u32),
+}
+
+#[derive(Debug, Clone)]
 pub struct Move {
     pub name: String,
+    pub effect: MoveType,
 }
 
 #[derive(Component, Debug, Clone)]
@@ -15,22 +32,53 @@ pub struct Spirit {
     pub name: String,
     pub max_health: u32,
     pub health: u32,
-    pub moves: Vec<Move>
+    pub moves: [Move; 4],
+}
+
+#[derive(Component, Debug)]
+pub struct PlayerSpirit {
+    pub active: bool,
+}
+
+#[derive(Component, Debug, Clone)]
+pub struct Player {
+    pub spirits: Vec<Spirit>,
 }
 
 #[derive(Default, Debug)]
 pub struct BattleState {
-    pub allies: Vec<Spirit>,
-    pub enemies: Vec<Spirit>,
-    pub menu_item: i32,
+    pub in_combat: bool,
+    pub activate: bool,
+    pub combat_move: Option<usize>,
+    pub active_entity: Option<Entity>,
 }
 
 impl BattleState {
     pub fn new() -> Self {
         BattleState {
-            allies: Vec::new(),
-            enemies: Vec::new(),
-            menu_item: 0,
+            in_combat: true,
+            activate: false,
+            combat_move: None,
+            active_entity: None,
+        }
+    }
+    pub fn want_attack(&mut self) {
+        self.activate = true;
+    }
+    pub fn finish_attack(&mut self) {
+        self.activate = false;
+    }
+    pub fn get_move<'a>(&self, spirits: &WriteStorage<'a, Spirit>) -> Option<Move> {
+        match (self.active_entity, self.combat_move) {
+            (Some(entity), Some(index)) => {
+                match spirits.get(entity) {
+                    Some(spirit) => {
+                        spirit.moves.get(index).map(|v| v.clone())
+                    },
+                    None => None
+                }
+            },
+            _ => None,
         }
     }
 }
@@ -59,17 +107,9 @@ impl Camera {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub enum EntityType {
-    Player,
-    Encounter,
-    Stairs,
-}
-
 #[derive(Debug, Component)]
 pub struct WorldEntity {
     pub location: (u32, u32),
-    pub entity_type: EntityType,
 }
 
 pub struct Tile {
@@ -116,16 +156,23 @@ impl Level {
     }
 }
 
+#[derive(Clone, PartialEq)]
 pub enum PlayState {
     InWorld,
     InBattle,
     Combining,
-    GameOver(String),
+    GameOver,
     MainMenu,
+}
+
+#[derive(Clone)]
+pub enum InputState {
+    Rest,
+    Move(Direction),
+    Select,
 }
 
 pub struct GameState<'a, 'b> {
     pub dispatcher: Dispatcher<'a, 'b>,
     pub world: World,
-    pub play_state: PlayState,
 }

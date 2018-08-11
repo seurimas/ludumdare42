@@ -10,8 +10,9 @@ use self::world::*;
 use self::debug::*;
 use self::combat::*;
 
-pub fn render_world(ctx: &mut Context, world: &World, play_state: &PlayState) -> GameResult<()> {
-    match play_state {
+pub fn render_world(ctx: &mut Context, world: &World) -> GameResult<()> {
+    let play_state = world.read_resource::<PlayState>();
+    match *play_state {
         PlayState::InWorld => {
             render_in_world(ctx, world)
         },

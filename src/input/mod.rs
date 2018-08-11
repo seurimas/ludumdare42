@@ -4,10 +4,11 @@ mod combat;
 use state::PlayState;
 use ggez::*;
 use specs::*;
-use self::world::move_player;
-use self::combat::move_cursor;
+pub use self::world::HandleMove;
+pub use self::combat::HandleBattleMenu;
+use self::combat::select_target;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Direction {
     Up,
     Down,
@@ -15,14 +16,12 @@ pub enum Direction {
     Right,
 }
 
-pub fn handle_arrow(ctx: &mut Context, world: &mut World, play_state: &PlayState, direction: Direction) {
+pub fn handle_select(ctx: &mut Context, world: &mut World) {
+    let play_state = world.read_resource::<PlayState>().clone();
     match play_state {
-        PlayState::InWorld => {
-            move_player(ctx, world, &direction);
-        },
         PlayState::InBattle => {
-            move_cursor(ctx, world, &direction);
-        }
+            select_target(ctx, world);
+        },
         _ => {
 
         }

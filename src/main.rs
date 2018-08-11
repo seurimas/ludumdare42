@@ -6,98 +6,39 @@ extern crate specs_derive;
 mod render;
 mod state;
 mod input;
+mod systems;
 use specs::*;
 use ggez::*;
 use ggez::event::*;
 use render::render_world;
 use state::*;
 use input::*;
+use systems::*;
 use std::collections::*;
 
 const SCREEN_SIZE: (u32, u32) = (800, 600);
-
-type WorldEntities<'a> = (
-    Entities<'a>,
-    ReadStorage<'a, WorldEntity>,
-);
-
-fn find_encounter((entities, world_entities): WorldEntities) -> Option<Entity> {
-    let mut player_loc = (0, 0);
-    for world_entity in (&world_entities).join() {
-        if world_entity.entity_type == EntityType::Player {
-            player_loc = world_entity.location;
-        }
-    }
-    let mut found = None;
-    for (entity, world_entity) in (&*entities, &world_entities).join() {
-        if world_entity.entity_type == EntityType::Encounter
-            && world_entity.location == player_loc {
-            found = Some(entity);
-        }
-    }
-    found
-}
-
-fn get_encounter(world: &World, entity: Entity) -> Option<Encounter> {
-    let encounters = world.read_storage::<Encounter>();
-    match encounters.get(entity) {
-        Some(encounter) => {
-            Some(encounter.clone())
-        },
-        None => None
-    }
-}
-
-fn initialize_encounter(ctx: &mut Context, world: &mut World, entity: Entity) {
-    match get_encounter(world, entity) {
-        Some(encounter) => {
-            let mut battle_state = world.write_resource::<BattleState>();
-            battle_state.enemies = encounter.spirits.clone();
-        },
-        _ => {
-            println!("BAD BAD BAD");
-        },
-    }
-}
-
-fn find_encounters(
-    ctx: &mut Context,
-    world: &mut World,
-) -> bool {
-    let encounter = world.exec(find_encounter);
-    match encounter {
-        Some(entity) => {
-            initialize_encounter(ctx, world, entity);
-            true
-        },
-        None => {
-            false
-        }
-    }
-}
 
 pub struct CameraSystem;
 impl<'a> System<'a> for CameraSystem {
     type SystemData = (
         Write<'a, Camera>,
         ReadStorage<'a, WorldEntity>,
+        ReadStorage<'a, Player>,
     );
 
-    fn run(&mut self, (mut camera, entities): Self::SystemData) {
-        for entity in (&entities).join() {
-            if entity.entity_type == EntityType::Player {
-                if entity.location.0 >= camera.width / 2 {
-                    let x_offset = entity.location.0 - camera.width / 2;
-                    camera.x_offset = x_offset;
-                } else {
-                    camera.x_offset = 0;
-                }
-                if entity.location.1 >= camera.height / 2 {
-                    let y_offset = entity.location.1 - camera.height / 2;
-                    camera.y_offset = y_offset;
-                } else {
-                    camera.y_offset = 0;
-                }
+    fn run(&mut self, (mut camera, entities, players): Self::SystemData) {
+        for (entity, player) in (&entities, &players).join() {
+            if entity.location.0 >= camera.width / 2 {
+                let x_offset = entity.location.0 - camera.width / 2;
+                camera.x_offset = x_offset;
+            } else {
+                camera.x_offset = 0;
+            }
+            if entity.location.1 >= camera.height / 2 {
+                let y_offset = entity.location.1 - camera.height / 2;
+                camera.y_offset = y_offset;
+            } else {
+                camera.y_offset = 0;
             }
         }
     }
@@ -109,19 +50,33 @@ impl<'a, 'b> GameState<'a, 'b> {
         world.register::<WorldEntity>();
         world.register::<Encounter>();
         world.register::<Spirit>();
+        world.register::<PlayerSpirit>();
+        world.register::<Player>();
         world.add_resource(Level::new());
         world.add_resource(Camera::new(SCREEN_SIZE.0, SCREEN_SIZE.1));
         world.add_resource(BattleState::new());
-
-        world.create_entity()
-            .with(WorldEntity { location: (1, 1), entity_type: EntityType::Player })
-            .build();
+        world.add_resource(PlayState::InWorld);
+        world.add_resource(InputState::Rest);
 
         let mut spirits = Vec::new();
-        let mut moves = Vec::new();
-        moves.push(Move {
-            name: "Attack".to_string(),
-        });
+        let moves = [
+            Move {
+                name: "Attack".to_string(),
+                effect: MoveType::DamageOne(5),
+            },
+            Move {
+                name: "Defend".to_string(),
+                effect: MoveType::Defend(5),
+            },
+            Move {
+                name: "Special".to_string(),
+                effect: MoveType::DamageMany(3),
+            },
+            Move {
+                name: "Special Defense".to_string(),
+                effect: MoveType::Heal(10),
+            },
+        ];
         spirits.push(Spirit {
             name: "Mote".to_string(),
             health: 10,
@@ -134,10 +89,14 @@ impl<'a, 'b> GameState<'a, 'b> {
             max_health: 10,
             moves: moves.clone(),
         });
+
+        world.create_entity()
+            .with(WorldEntity { location: (1, 1) })
+            .with(Player { spirits: spirits.clone() })
+            .build();
         world.create_entity()
             .with(WorldEntity {
                 location: (1, 1),
-                entity_type: EntityType::Encounter
             })
             .with(Encounter {
                 spirits,
@@ -145,15 +104,16 @@ impl<'a, 'b> GameState<'a, 'b> {
             .build();
 
         let dispatcher = DispatcherBuilder::new()
+            .with(HandleMove, "move", &[])
+            .with(HandleBattleMenu, "battle_menu", &[])
             .with(CameraSystem, "camera", &[])
+            .with(FindEncounters, "find", &[])
+            .with(WatchAttack, "attack", &[])
             .build();
-
-        let play_state = PlayState::InWorld;
 
         GameState {
             dispatcher,
             world,
-            play_state,
         }
     }
 
@@ -171,7 +131,7 @@ impl<'a, 'b> EventHandler for GameState<'a, 'b> {
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
         graphics::clear(ctx);
-        render_world(ctx, &self.world, &self.play_state)?;
+        render_world(ctx, &self.world)?;
         graphics::present(ctx);
         ggez::timer::yield_now();
         Ok(())
@@ -187,28 +147,23 @@ impl<'a, 'b> EventHandler for GameState<'a, 'b> {
         if !repeat {
             match keycode {
                 Keycode::W => {
-                    handle_arrow(ctx, &mut self.world, &self.play_state, Direction::Up);
+                    self.world.add_resource(InputState::Move(Direction::Up));
                 },
                 Keycode::A => {
-                    handle_arrow(ctx, &mut self.world, &self.play_state, Direction::Left);
+                    self.world.add_resource(InputState::Move(Direction::Left));
                 },
                 Keycode::S => {
-                    handle_arrow(ctx, &mut self.world, &self.play_state, Direction::Down);
+                    self.world.add_resource(InputState::Move(Direction::Down));
                 },
                 Keycode::D => {
-                    handle_arrow(ctx, &mut self.world, &self.play_state, Direction::Right);
+                    self.world.add_resource(InputState::Move(Direction::Right));
+                },
+                Keycode::Space => {
+                    self.world.add_resource(InputState::Select);
                 },
                 _ => {
 
                 }
-            }
-            match self.play_state {
-                PlayState::InWorld => {
-                    if find_encounters(ctx, &mut self.world) {
-                        self.play_state = PlayState::InBattle;
-                    }
-                },
-                _ => {}
             }
         }
     }

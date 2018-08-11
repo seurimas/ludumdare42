@@ -41,15 +41,27 @@ fn move_in_level(loc: (u32, u32), direction: &Direction, level: &Level) -> Optio
     }
 }
 
-pub fn move_player(ctx: &mut Context, world: &mut World, direction: &Direction) {
-    let level = world.read_resource::<Level>();
-    let mut entities = world.write_storage::<WorldEntity>();
-    for mut ent in (&mut entities).join() {
-        if ent.entity_type == EntityType::Player {
-            match move_in_level(ent.location, &direction, &level) {
-                Some(next) => { ent.location = next; },
-                _ => {}
-            }
+pub struct HandleMove;
+impl<'a> System<'a> for HandleMove {
+    type SystemData = (
+        ReadExpect<'a, PlayState>,
+        WriteExpect<'a, InputState>,
+        ReadExpect<'a, Level>,
+        WriteStorage<'a, WorldEntity>,
+        ReadStorage<'a, Player>,
+    );
+    fn run(&mut self, (play_state, mut input_state, level, mut world_entities, players): Self::SystemData) {
+        match (play_state.clone(), input_state.clone()) {
+            (PlayState::InWorld, InputState::Move(direction)) => {
+                for (mut world_entity, player) in (&mut world_entities, &players).join() {
+                    match move_in_level(world_entity.location, &direction, &level) {
+                        Some(next) => { world_entity.location = next; },
+                        _ => {}
+                    }
+                }
+                *input_state = InputState::Rest;
+            },
+            _ => {}
         }
     }
 }
