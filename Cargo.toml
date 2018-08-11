@@ -1,0 +1,16 @@
+[package]
+name = "ludum_dare_42"
+version = "0.1.0"
+authors = ["Seurimas <nicholasanderson5@gmail.com>"]
+
+[[bin]]
+name = "main"
+path = "src/main.rs"
+
+[dependencies]
+ggez = "0.4.3"
+specs = "0.12"
+specs-derive = "0.2.0"
+serde = "1.0"
+serde_derive = "1.0"
+ron = "0.3.0"
