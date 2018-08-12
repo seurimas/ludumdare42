@@ -64,7 +64,7 @@ impl<'a> System<'a> for WatchSpirits {
         WriteStorage<'a, Player>,
     );
 
-    fn run(&mut self, (mut battle_state, mut play_state, entities, spirits, player_spirits, players): Self::SystemData) {
+    fn run(&mut self, (mut battle_state, mut play_state, entities, spirits, player_spirits, mut players): Self::SystemData) {
         if *play_state == PlayState::InBattle {
             let mut players_alive = false;
             for (spirit, _player_spirit) in (&spirits, &player_spirits).join() {
@@ -88,10 +88,11 @@ impl<'a> System<'a> for WatchSpirits {
             if !enemies_alive  {
                 let mut captured = Vec::new();
                 let mut lost = Vec::new();
-                for player in (&players).join() {
+                for player in (&mut players).join() {
                     for captured_spirit in captured_enemies.iter() {
                         if player.spirits.len() < 25 {
                             captured.push(captured_spirit.clone());
+                            player.spirits.push(Spirit::new(captured_spirit.clone()));
                         } else {
                             lost.push(captured_spirit.clone());
                         }

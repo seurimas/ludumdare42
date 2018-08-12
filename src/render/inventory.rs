@@ -14,11 +14,12 @@ const DESCRIPTION_SIZE: (i32, i32) = (256, 280);
 const NAME_OFFSET: (f32, f32) = (8.0, 8.0);
 const ELEMENT_OFFSET: (f32, f32) = (8.0, 24.0);
 const HEALTH_OFFSET: (f32, f32) = (8.0, 40.0);
+const COLLIDE_OFFSET: (f32, f32) = (8.0, 72.0);
 const MOVES_OFFSETS: [(f32, f32); 4] = [
-    (8.0, 72.0),
-    (148.0, 72.0),
     (8.0, 136.0),
     (148.0, 136.0),
+    (8.0, 200.0),
+    (148.0, 200.0),
 ];
 
 pub fn render_combining(ctx: &mut Context, world: &mut World) -> GameResult<()> {
@@ -46,11 +47,12 @@ pub fn render_combining(ctx: &mut Context, world: &mut World) -> GameResult<()> 
                     ))?;
                     if let Some(spirit) = player.spirits.get(index as usize) {
                         set_color(ctx, [1.0, 1.0, 1.0, 1.0].into())?;
-                        spritebatch.add(inventory_sprite(&spirit.element,
+                        spritebatch.add(spirit_sprite(&spirit.element,
                             SPIRIT_LOCATION.0 + (SPIRIT_SIZE.0 + SPIRIT_BUFFER.0) * x,
                             SPIRIT_LOCATION.1 + (SPIRIT_SIZE.1 + SPIRIT_BUFFER.1) * y,
                             SPIRIT_SIZE.0,
                             SPIRIT_SIZE.1,
+                            None,
                         ));
                         set_color(ctx, [1.0, 1.0, 1.0, 1.0].into())?;
                         rectangle(ctx, DrawMode::Line(4.0), Rect::new_i32(
@@ -88,6 +90,11 @@ pub fn render_combining(ctx: &mut Context, world: &mut World) -> GameResult<()> 
                                 DESCRIPTION_AREA.0 as f32 + HEALTH_OFFSET.0,
                                 DESCRIPTION_AREA.1 as f32 + HEALTH_OFFSET.1,
                             ), 0.0)?;
+                            text_in_box(ctx, &collide_text(&spirit.element), (
+                                DESCRIPTION_AREA.0 + COLLIDE_OFFSET.0 as i32,
+                                DESCRIPTION_AREA.1 + COLLIDE_OFFSET.1 as i32,
+                                DESCRIPTION_SIZE.0,
+                            ));
                         }
                     }
                 }

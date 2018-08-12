@@ -37,25 +37,6 @@ fn move_cursor<'a>(inventory_state: &mut WriteExpect<'a, InventoryState>, direct
         },
     }
 }
-fn required_spirits(element: &SpiritType) -> u32 {
-    match element {
-        SpiritType::Fire(level) => {
-            4 + level * 2
-        },
-        SpiritType::Water(level) => {
-            4 + level * 2
-        },
-        SpiritType::Slime(level) => {
-            2 + level * 1
-        },
-        SpiritType::Light(level) => {
-            3 + level * 4
-        },
-        SpiritType::Dark(level) => {
-            3 + level * 4
-        }
-    }
-}
 fn next_spirit(spirit: Spirit) -> Spirit {
     match spirit.element {
         SpiritType::Fire(level) => {
@@ -108,12 +89,15 @@ fn combine_spirits(player: &mut Player, index: usize) {
                 compatriots.push(idx);
             }
         }
-        if compatriots.len() >= required_spirits(&spirit.element) as usize {
+        let used = required_spirits(&spirit.element) as usize;
+        if compatriots.len() >= used {
             compatriots.reverse();
-            for idx in compatriots.iter() {
-                player.spirits.remove(*idx);
+            for (count, idx) in compatriots.iter().enumerate() {
+                if count < used {
+                    player.spirits.remove(*idx);
+                }
             }
-            player.spirits.insert(index, next_spirit(spirit));
+            player.spirits.insert(0, next_spirit(spirit));
         }
     }
 }

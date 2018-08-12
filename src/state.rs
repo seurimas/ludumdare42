@@ -2,6 +2,8 @@ use ggez::*;
 use specs::*;
 use std::collections::HashMap;
 use input::Direction;
+use rand::*;
+use rand::distributions::{Normal, Distribution};
 
 pub const SCREEN_SIZE: (u32, u32) = (632, 368);
 pub const TILE_SIZE: u32 = 64;
@@ -21,6 +23,21 @@ pub struct Move {
     pub effect: MoveType,
 }
 
+#[derive(Component, Debug, Clone)]
+pub struct Damage {
+    pub amount: usize,
+}
+
+#[derive(Component, Debug, Clone)]
+pub struct Heal {
+    pub amount: usize,
+}
+
+#[derive(Component, Debug, Clone)]
+pub struct Defense {
+    pub amount: usize,
+}
+
 #[derive(PartialEq, Debug, Clone)]
 pub enum SpiritType {
     Fire(u32),
@@ -28,6 +45,18 @@ pub enum SpiritType {
     Slime(u32),
     Light(u32),
     Dark(u32),
+}
+
+impl SpiritType {
+    pub fn level(&self) -> u32 {
+        match self {
+            SpiritType::Fire(level) => *level,
+            SpiritType::Water(level) => *level,
+            SpiritType::Slime(level) => *level,
+            SpiritType::Light(level) => *level,
+            SpiritType::Dark(level) => *level,
+        }
+    }
 }
 
 #[derive(Component, Debug, Clone)]
@@ -39,14 +68,37 @@ pub struct Spirit {
 }
 
 impl Spirit {
-    pub fn level(&self) -> u32 {
-        match self.element {
-            SpiritType::Fire(level) => level,
-            SpiritType::Water(level) => level,
-            SpiritType::Slime(level) => level,
-            SpiritType::Light(level) => level,
-            SpiritType::Dark(level) => level,
+    pub fn new(element: SpiritType) -> Self {
+        let mut rng = thread_rng();
+        let max_health = ((1 + element.level()) * 10) +
+            ((rng.gen::<f32>() + rng.gen::<f32>()) * 5.0) as u32;
+        println!("{}", max_health);
+        Spirit {
+            element,
+            max_health,
+            health: max_health,
+            moves: [
+                Move {
+                    name: "Attack".to_string(),
+                    effect: MoveType::DamageOne(5),
+                },
+                Move {
+                    name: "Defend".to_string(),
+                    effect: MoveType::Defend(5),
+                },
+                Move {
+                    name: "Special".to_string(),
+                    effect: MoveType::DamageMany(3),
+                },
+                Move {
+                    name: "Special Defense".to_string(),
+                    effect: MoveType::Heal(10),
+                },
+            ],
         }
+    }
+    pub fn level(&self) -> u32 {
+        self.element.level()
     }
 }
 
@@ -64,6 +116,7 @@ pub struct Player {
 pub struct BattleState {
     pub in_combat: bool,
     pub retreating: bool,
+    pub enemy_attacking: bool,
     pub activate: bool,
     pub combat_move: Option<usize>,
     pub active_entity: Option<Entity>,
@@ -75,6 +128,7 @@ impl BattleState {
         BattleState {
             in_combat: true,
             retreating: false,
+            enemy_attacking: false,
             activate: false,
             combat_move: None,
             active_entity: None,
@@ -82,10 +136,13 @@ impl BattleState {
         }
     }
     pub fn want_attack(&mut self) {
-        self.activate = true;
+        if !self.enemy_attacking {
+            self.activate = true;
+        }
     }
     pub fn finish_attack(&mut self) {
         self.activate = false;
+        self.enemy_attacking = true;
     }
     pub fn get_move<'a>(&self, spirits: &WriteStorage<'a, Spirit>) -> Option<Move> {
         match (self.active_entity, self.combat_move) {
@@ -205,6 +262,35 @@ impl InventoryState {
     pub fn new() -> Self {
         InventoryState {
             index: 0,
+        }
+    }
+}
+pub fn can_upgrade(element: &SpiritType) -> bool {
+    match element {
+        SpiritType::Fire(2) => false,
+        SpiritType::Water(2) => false,
+        SpiritType::Slime(2) => false,
+        SpiritType::Light(2) => false,
+        SpiritType::Dark(2) => false,
+        _ => true,
+    }
+}
+pub fn required_spirits(element: &SpiritType) -> u32 {
+    match element {
+        SpiritType::Fire(level) => {
+            4 + level * 2
+        },
+        SpiritType::Water(level) => {
+            4 + level * 2
+        },
+        SpiritType::Slime(level) => {
+            2 + level * 1
+        },
+        SpiritType::Light(level) => {
+            3 + level * 4
+        },
+        SpiritType::Dark(level) => {
+            3 + level * 4
         }
     }
 }

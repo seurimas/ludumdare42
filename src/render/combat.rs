@@ -19,12 +19,13 @@ const ALLY_BARS: [(i32, i32); ALLY_COUNT] = [
 const ALLY_BAR_INNER_OFFSET: (i32, i32) = (62, 16);
 const ALLY_BAR_AREA: (i32, i32, i32, i32) = (
     SCREEN_SIZE.0 as i32 - BAR_SIZE.0 - 16,
-    SCREEN_SIZE.1 as i32 - 72 - 64 - BAR_SIZE.1 * 4,
+    SCREEN_SIZE.1 as i32 - 120,
     16 + BAR_SIZE.0,
-    64 + BAR_SIZE.1 * 4,
+    16 + BAR_SIZE.1,
 );
 
 const ENEMY_COUNT: usize = 3;
+const LINEUP_COUNT: usize = 8;
 const ENEMY_BARS: [(i32, i32); ENEMY_COUNT] = [
     (8, 8),
     (8, BAR_SIZE.1 + 24),
@@ -34,7 +35,14 @@ const ENEMY_BAR_AREA: (i32, i32, i32, i32) = (
     0,
     0,
     16 + BAR_SIZE.0,
-    64 + BAR_SIZE.1 * 4,
+    48 + BAR_SIZE.1 * 3,
+);
+const ENEMY_LINEUP: (i32, i32, i32, i32) = (
+    8, 56 + BAR_SIZE.1 * 3,
+    128, 64,
+);
+const ENEMY_LINEUP_SIZE: (i32, i32) = (
+    128 / 4, 64 / 2,
 );
 const ENEMY_BAR_INNER_OFFSET: (i32, i32) = (34, 16);
 const MOVE_AREAS: [(f32, f32); 4] = [
@@ -62,6 +70,7 @@ pub fn render_combat(ctx: &mut Context, world: &World) -> GameResult<()> {
     let player_spirits = world.read_storage::<PlayerSpirit>();
     let mut spritebatch = world.write_resource::<SpriteBatch>();
     let mut enemy_count = 0;
+    let mut lineup_count = 0;
     set_color(ctx, [1.0, 1.0, 1.0, 1.0].into())?;
     rectangle(ctx, DrawMode::Fill, Rect::new_i32(
         ENEMY_BAR_AREA.0,
@@ -78,6 +87,17 @@ pub fn render_combat(ctx: &mut Context, world: &World) -> GameResult<()> {
             ), enemy.health as f32 / enemy.max_health as f32)?;
             spritebatch.add(enemy_bar_sprite(enemy_bar.0, enemy_bar.1, BAR_SIZE.0, BAR_SIZE.1));
             enemy_count += 1;
+        } else if lineup_count < LINEUP_COUNT {
+            let x_index = lineup_count % 4;
+            let y_index = lineup_count / 4;
+            let x_offset = x_index as i32 * ENEMY_LINEUP_SIZE.0;
+            let y_offset = y_index as i32 * ENEMY_LINEUP_SIZE.1;
+            spritebatch.add(spirit_sprite(&enemy.element,
+                ENEMY_LINEUP.0 + x_offset + 4, ENEMY_LINEUP.1 + y_offset + 4,
+                ENEMY_LINEUP_SIZE.0 - 8, ENEMY_LINEUP_SIZE.1 - 8,
+                None,
+            ));
+            lineup_count += 1;
         }
     }
     set_color(ctx, [1.0, 1.0, 1.0, 1.0].into())?;

@@ -32,7 +32,7 @@ pub fn render_world(ctx: &mut Context, world: &mut World) -> GameResult<()> {
             render_combining(ctx, world)
         },
         PlayState::Looting { captured, lost } => {
-            render_looting(ctx, world, &captured)
+            render_looting(ctx, world, &captured, &lost)
         },
         _ => {
             Ok(())

@@ -2,6 +2,7 @@ extern crate specs;
 extern crate ggez;
 #[macro_use]
 extern crate specs_derive;
+extern crate rand;
 
 mod render;
 mod state;
@@ -139,10 +140,12 @@ impl<'a, 'b> GameState<'a, 'b> {
             .with(HandleMove, "move", &[])
             .with(HandleBattleMenu, "battle_menu", &[])
             .with(HandleInventory, "inventory", &[])
+            .with(HandleLootMenu, "looting", &[])
             .with(CameraSystem, "camera", &[])
             .with(FindEncounters, "find", &[])
             .with(WatchAttack, "attack", &[])
             .with(WatchSpirits, "spirits", &[])
+            .with(EnemyCombat, "enemy_attack", &[])
             .build();
 
         GameState {
