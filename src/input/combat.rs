@@ -34,8 +34,8 @@ impl<'a> System<'a> for HandleBattleMenu {
         WriteExpect<'a, BattleState>,
     );
     fn run(&mut self, (play_state, mut input_state, mut battle_state): Self::SystemData) {
-        match (play_state.clone(), input_state.clone()) {
-            (PlayState::InBattle, InputState::Move(direction)) => {
+        match (play_state.clone(), input_state.clone(), battle_state.retreating) {
+            (PlayState::InBattle, InputState::Move(direction), false) => {
                 if let Some(index) = battle_state.combat_move {
                     let next_index = (match direction {
                         Direction::Up => index + 4 - 2,
@@ -49,8 +49,7 @@ impl<'a> System<'a> for HandleBattleMenu {
                 }
                 *input_state = InputState::Rest;
             },
-            (PlayState::InBattle, InputState::Select) => {
-                println!("ATTACK");
+            (PlayState::InBattle, InputState::Select, false) => {
                 battle_state.want_attack();
                 *input_state = InputState::Rest;
             }

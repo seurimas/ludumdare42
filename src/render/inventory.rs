@@ -22,15 +22,25 @@ const MOVES_OFFSETS: [(i32, i32, i32); 4] = [
     (DESCRIPTION_AREA.0 + 148, 200, 130),
 ];
 
-pub fn render_combining(ctx: &mut Context, world: &mut World) -> GameResult<()> {
+pub fn render_inventory(ctx: &mut Context, world: &mut World, is_retreat: bool) -> GameResult<()> {
     type SystemData<'a> = (
         ReadStorage<'a, Player>,
         ReadExpect<'a, InventoryState>,
         WriteExpect<'a, SpriteBatch>,
+        Entities<'a>,
+        ReadStorage<'a, Spirit>,
+        ReadStorage<'a, PlayerSpirit>,
     );
-    world.exec(|(players, inventory_state, mut spritebatch): SystemData| -> GameResult<()> {
+    world.exec(|(players, inventory_state, mut spritebatch, entities, spirits, player_spirits): SystemData| -> GameResult<()> {
         let font = Font::default_font()?;
         for player in (&players).join() {
+            let mut inv_spirits = player.spirits.clone();
+            if is_retreat {
+                inv_spirits = Vec::new();
+                for (entity, spirit, player_spirit) in (&*entities, &spirits, &player_spirits).join() {
+                    inv_spirits.push(spirit.clone());
+                }
+            }
             for y in 0..INVENTORY_LAYOUT.0 {
                 for x in 0..INVENTORY_LAYOUT.1 {
                     let index = x + y * INVENTORY_LAYOUT.0;
@@ -45,7 +55,7 @@ pub fn render_combining(ctx: &mut Context, world: &mut World) -> GameResult<()> 
                         SPIRIT_SIZE.0,
                         SPIRIT_SIZE.1,
                     ))?;
-                    if let Some(spirit) = player.spirits.get(index as usize) {
+                    if let Some(spirit) = inv_spirits.get(index as usize) {
                         set_color(ctx, [1.0, 1.0, 1.0, 1.0].into())?;
                         spritebatch.add(spirit_sprite(&spirit.element,
                             SPIRIT_LOCATION.0 + (SPIRIT_SIZE.0 + SPIRIT_BUFFER.0) * x,

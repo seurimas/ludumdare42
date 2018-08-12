@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use input::Direction;
 use rand::*;
 use rand::distributions::{Normal, Distribution};
+use std::time::Duration;
 
 pub const SCREEN_SIZE: (u32, u32) = (632, 368);
 pub const TILE_SIZE: u32 = 64;
@@ -60,19 +61,71 @@ fn fire_moves() -> [Move; 8] {
     ]
 }
 
-#[derive(Component, Debug, Clone)]
-pub struct Damage {
-    pub amount: usize,
+#[derive(Debug, Clone)]
+pub enum CombatEffect {
+    Damage(u32),
+    Heal(u32),
+    Defense(u32),
 }
 
 #[derive(Component, Debug, Clone)]
-pub struct Heal {
-    pub amount: usize,
+pub struct CombatEffects {
+    pub effects: Vec<CombatEffect>,
+    pub duration: Duration,
 }
 
-#[derive(Component, Debug, Clone)]
-pub struct Defense {
-    pub amount: usize,
+impl CombatEffects {
+    pub fn new(effects: Vec<CombatEffect>) -> Self {
+        CombatEffects {
+            effects,
+            duration: Duration::from_millis(100),
+        }
+    }
+    pub fn active(&self) -> bool {
+        self.effects.len() > 0
+    }
+    pub fn update(&mut self, delta: Duration) -> bool {
+        match self.duration.checked_sub(delta) {
+            Some(next) => {
+                self.duration = next;
+                false
+            },
+            None => {
+                self.duration = Duration::from_millis(100);
+                true
+            }
+        }
+    }
+    pub fn apply_tick(&mut self, spirit: &mut Spirit) {
+        let mut new_effects = Vec::new();
+        for effect in self.effects.iter() {
+            match effect {
+                CombatEffect::Damage(amount) => {
+                    if spirit.health > 0 {
+                        spirit.health -= 1;
+                        if *amount > 1 {
+                            new_effects.push(CombatEffect::Damage(amount - 1));
+                        }
+                    }
+                },
+                CombatEffect::Heal(amount) => {
+                    if spirit.health < spirit.max_health {
+                        spirit.health += 1;
+                        if *amount > 1 {
+                            new_effects.push(CombatEffect::Heal(amount - 1));
+                        }
+                    }
+                },
+                CombatEffect::Defense(amount) => {
+                    spirit.defense += 1;
+                    if *amount > 1 {
+                        new_effects.push(CombatEffect::Defense(amount - 1));
+                    }
+                },
+            }
+        }
+        self.effects = new_effects;
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -101,6 +154,7 @@ pub struct Spirit {
     pub element: SpiritType,
     pub max_health: u32,
     pub health: u32,
+    pub defense: u32,
     pub moves: [Move; 4],
 }
 
@@ -115,6 +169,7 @@ impl Spirit {
             element,
             max_health,
             health: max_health,
+            defense: 0,
             moves: [
                 moves[0].clone(),
                 moves[1].clone(),
@@ -138,7 +193,7 @@ pub struct Player {
     pub spirits: Vec<Spirit>,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct BattleState {
     pub in_combat: bool,
     pub retreating: bool,
@@ -169,6 +224,10 @@ impl BattleState {
     pub fn finish_attack(&mut self) {
         self.activate = false;
         self.enemy_attacking = true;
+    }
+    pub fn retreat(&mut self) {
+        self.active_entity = None;
+        self.retreating = true;
     }
     pub fn get_move<'a>(&self, spirits: &WriteStorage<'a, Spirit>) -> Option<Move> {
         match (self.active_entity, self.combat_move) {

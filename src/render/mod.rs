@@ -6,7 +6,7 @@ mod text;
 mod looting;
 mod sprites;
 
-use state::PlayState;
+use state::*;
 use ggez::*;
 use specs::*;
 use ggez::graphics::*;
@@ -26,10 +26,15 @@ pub fn render_world(ctx: &mut Context, world: &mut World) -> GameResult<()> {
             render_in_world(ctx, world)
         },
         PlayState::InBattle => {
-            render_combat(ctx, world)
+            let battle_state = world.read_resource::<BattleState>().clone();
+            if battle_state.retreating {
+                render_inventory(ctx, world, true)
+            } else {
+                render_combat(ctx, world)
+            }
         },
         PlayState::Combining => {
-            render_combining(ctx, world)
+            render_inventory(ctx, world, false)
         },
         PlayState::Looting { captured, lost } => {
             render_looting(ctx, world, &captured, &lost)

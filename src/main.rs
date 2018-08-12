@@ -19,6 +19,7 @@ use input::*;
 use systems::*;
 use std::path::Path;
 use std::collections::*;
+use std::time::Duration;
 
 pub struct CameraSystem;
 impl<'a> System<'a> for CameraSystem {
@@ -54,12 +55,14 @@ impl<'a, 'b> GameState<'a, 'b> {
         world.register::<Spirit>();
         world.register::<PlayerSpirit>();
         world.register::<Player>();
+        world.register::<CombatEffects>();
         world.add_resource(Level::new());
         world.add_resource(Camera::new(SCREEN_SIZE.0, SCREEN_SIZE.1));
         world.add_resource(BattleState::new());
         world.add_resource(PlayState::Combining);
         world.add_resource(InputState::Rest);
         world.add_resource(InventoryState::new());
+        world.add_resource(Duration::new(0, 0));
 
         let mut spirits = Vec::new();
         spirits.push(Spirit::new(SpiritType::Fire(0)));
@@ -89,6 +92,7 @@ impl<'a, 'b> GameState<'a, 'b> {
             .with(WatchAttack, "attack", &[])
             .with(WatchSpirits, "spirits", &[])
             .with(EnemyCombat, "enemy_attack", &[])
+            .with(TickEffects, "tick_combat", &[])
             .build();
 
         GameState {
@@ -105,7 +109,8 @@ impl<'a, 'b> GameState<'a, 'b> {
 }
 
 impl<'a, 'b> EventHandler for GameState<'a, 'b> {
-    fn update(&mut self, _ctx: &mut Context) -> GameResult<()> {
+    fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
+        self.world.add_resource(ggez::timer::get_delta(&ctx));
         self.dispatcher.dispatch(&mut self.world.res);
         self.world.maintain();
         Ok(())

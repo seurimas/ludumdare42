@@ -45,6 +45,7 @@ fn next_spirit(spirit: Spirit) -> Spirit {
                 max_health: spirit.max_health * 2,
                 health: spirit.max_health * 2,
                 moves: spirit.moves,
+                defense: 0,
             }
         },
         SpiritType::Water(level) => {
@@ -53,6 +54,7 @@ fn next_spirit(spirit: Spirit) -> Spirit {
                 max_health: spirit.max_health * 2,
                 health: spirit.max_health * 2,
                 moves: spirit.moves,
+                defense: 0,
             }
         },
         SpiritType::Slime(level) => {
@@ -61,6 +63,7 @@ fn next_spirit(spirit: Spirit) -> Spirit {
                 max_health: spirit.max_health * 2,
                 health: spirit.max_health * 2,
                 moves: spirit.moves,
+                defense: 0,
             }
         },
         SpiritType::Light(level) => {
@@ -69,6 +72,7 @@ fn next_spirit(spirit: Spirit) -> Spirit {
                 max_health: spirit.max_health * 2,
                 health: spirit.max_health * 2,
                 moves: spirit.moves,
+                defense: 0,
             }
         },
         SpiritType::Dark(level) => {
@@ -77,8 +81,26 @@ fn next_spirit(spirit: Spirit) -> Spirit {
                 max_health: spirit.max_health * 2,
                 health: spirit.max_health * 2,
                 moves: spirit.moves,
+                defense: 0,
             }
         },
+    }
+}
+fn select_fighter<'a>(
+    inventory_state: &InventoryState,
+    battle_state: &mut BattleState,
+    entities: &Entities<'a>,
+    spirits: &WriteStorage<'a, Spirit>,
+    player_spirits: &mut WriteStorage<'a, PlayerSpirit>,
+) {
+    let mut idx = 0;
+    for (entity, spirit, player_spirit) in (&**entities, spirits, player_spirits).join() {
+        if idx == inventory_state.index && spirit.health > 0 {
+            battle_state.active_entity = Some(entity);
+            battle_state.retreating = false;
+            player_spirit.active = true;
+        }
+        idx += 1;
     }
 }
 fn combine_spirits(player: &mut Player, index: usize) {
@@ -103,15 +125,16 @@ fn combine_spirits(player: &mut Player, index: usize) {
 }
 impl<'a> System<'a> for HandleInventory {
     type SystemData = (
+        Entities<'a>,
         WriteExpect<'a, PlayState>,
         WriteExpect<'a, InputState>,
-        ReadExpect<'a, BattleState>,
+        WriteExpect<'a, BattleState>,
         WriteExpect<'a, InventoryState>,
         WriteStorage<'a, Player>,
         WriteStorage<'a, Spirit>,
         WriteStorage<'a, PlayerSpirit>,
     );
-    fn run(&mut self, (mut play_state, mut input_state, battle_state, mut inventory_state, mut players, mut spirits, mut player_spirits): Self::SystemData) {
+    fn run(&mut self, (entities, mut play_state, mut input_state, mut battle_state, mut inventory_state, mut players, mut spirits, mut player_spirits): Self::SystemData) {
         match (play_state.clone(), battle_state.retreating) {
             (PlayState::Combining, _) => {
                 match input_state.clone() {
@@ -140,6 +163,10 @@ impl<'a> System<'a> for HandleInventory {
                         move_cursor(&mut inventory_state, direction);
                         *input_state = InputState::Rest;
                     },
+                    InputState::Select => {
+                        select_fighter(&inventory_state, &mut battle_state, &entities, &spirits, &mut player_spirits);
+                        *input_state = InputState::Rest;
+                    }
                     _ => {
 
                     }

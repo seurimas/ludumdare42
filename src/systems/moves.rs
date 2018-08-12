@@ -1,36 +1,58 @@
 use ggez::*;
 use specs::*;
 use state::*;
+use std::time::Duration;
+
+fn get_active_enemies<'a>(
+    amount: usize,
+    entities: &Entities<'a>,
+    spirits: &WriteStorage<'a, Spirit>,
+    player_spirits: &ReadStorage<'a, PlayerSpirit>
+) -> Vec<Entity> {
+    let mut affected = Vec::new();
+    for (entity, spirit, ()) in (&**entities, spirits, !player_spirits).join() {
+        if spirit.health > 0 && affected.len() < amount {
+            affected.push(entity.clone());
+        }
+    }
+    affected
+}
 
 pub struct WatchAttack;
 impl<'a> System<'a> for WatchAttack {
     type SystemData = (
         Write<'a, BattleState>,
+        Entities<'a>,
         WriteStorage<'a, Spirit>,
         ReadStorage<'a, PlayerSpirit>,
+        WriteStorage<'a, CombatEffects>,
     );
 
-    fn run(&mut self, (mut battle_state, mut spirits, player_spirits): Self::SystemData) {
+    fn run(&mut self, (mut battle_state, mut entities, mut spirits, player_spirits, mut combat_effects): Self::SystemData) {
         if battle_state.activate {
             let my_move = battle_state.get_move(&spirits);
             match my_move.map(|v| v.effect) {
                 Some(MoveType::DamageMany(amount)) => {
-                    let mut amount_left = amount;
-                    for (spirit, ()) in (&mut spirits, !&player_spirits).join() {
-                        let dealt = u32::min(spirit.health, amount_left);
-                        amount_left -= dealt;
-                        spirit.health -= dealt;
+                    let affected = get_active_enemies(
+                        3,
+                        &entities,
+                        &spirits,
+                        &player_spirits,
+                    );
+                    for entity in affected.iter() {
+                        combat_effects.insert(*entity, CombatEffects::new(vec![CombatEffect::Damage(amount)]));
                     }
                     battle_state.finish_attack();
                 },
                 Some(MoveType::DamageOne(amount)) => {
-                    let mut amount_left = amount;
-                    for (spirit, ()) in (&mut spirits, !&player_spirits).join() {
-                        let dealt = u32::min(spirit.health, amount_left);
-                        if spirit.health > 0 {
-                            amount_left = 0;
-                            spirit.health -= dealt;
-                        }
+                    let affected = get_active_enemies(
+                        1,
+                        &entities,
+                        &spirits,
+                        &player_spirits,
+                    );
+                    for entity in affected.iter() {
+                        combat_effects.insert(*entity, CombatEffects::new(vec![CombatEffect::Damage(amount)]));
                     }
                     battle_state.finish_attack();
                 },
@@ -53,6 +75,31 @@ impl<'a> System<'a> for WatchAttack {
     }
 }
 
+pub struct TickEffects;
+impl<'a> System<'a> for TickEffects {
+    type SystemData = (
+        Entities<'a>,
+        WriteStorage<'a, Spirit>,
+        WriteStorage<'a, CombatEffects>,
+        Read<'a, Duration>,
+    );
+
+    fn run(&mut self, (entities, mut spirits, mut combat_effects, delta_time): Self::SystemData) {
+        let mut completed = Vec::new();
+        for (entity, spirit, combat_effect) in (&*entities, &mut spirits, &mut combat_effects).join() {
+            if combat_effect.update(*delta_time) {
+                combat_effect.apply_tick(spirit);
+            }
+            if !combat_effect.active() {
+                completed.push(entity.clone());
+            }
+        }
+        for complete in completed.iter() {
+            combat_effects.remove(*complete);
+        }
+    }
+}
+
 pub struct WatchSpirits;
 impl<'a> System<'a> for WatchSpirits {
     type SystemData = (
@@ -60,22 +107,31 @@ impl<'a> System<'a> for WatchSpirits {
         WriteExpect<'a, PlayState>,
         Entities<'a>,
         ReadStorage<'a, Spirit>,
-        ReadStorage<'a, PlayerSpirit>,
+        WriteStorage<'a, PlayerSpirit>,
         WriteStorage<'a, Player>,
     );
 
-    fn run(&mut self, (mut battle_state, mut play_state, entities, spirits, player_spirits, mut players): Self::SystemData) {
+    fn run(&mut self, (mut battle_state, mut play_state, entities, spirits, mut player_spirits, mut players): Self::SystemData) {
         if *play_state == PlayState::InBattle {
             let mut players_alive = false;
-            for (spirit, _player_spirit) in (&spirits, &player_spirits).join() {
+            let mut retreating = true;
+            for (spirit, player_spirit) in (&spirits, &mut player_spirits).join() {
                 if spirit.health > 0 {
                     players_alive = true;
+                    if player_spirit.active {
+                        retreating = false;
+                    }
+                } else if player_spirit.active {
+                    player_spirit.active = false;
                 }
             }
             if !players_alive {
                 *play_state = PlayState::GameOver;
                 battle_state.in_combat = false; // Leave combat.
                 ()
+            }
+            if !battle_state.retreating && retreating {
+                battle_state.retreat();
             }
             let mut enemies_alive = false;
             let mut captured_enemies = Vec::new();
