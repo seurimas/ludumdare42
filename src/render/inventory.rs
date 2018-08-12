@@ -15,11 +15,11 @@ const NAME_OFFSET: (f32, f32) = (8.0, 8.0);
 const ELEMENT_OFFSET: (f32, f32) = (8.0, 24.0);
 const HEALTH_OFFSET: (f32, f32) = (8.0, 40.0);
 const COLLIDE_OFFSET: (f32, f32) = (8.0, 72.0);
-const MOVES_OFFSETS: [(f32, f32); 4] = [
-    (8.0, 136.0),
-    (148.0, 136.0),
-    (8.0, 200.0),
-    (148.0, 200.0),
+const MOVES_OFFSETS: [(i32, i32, i32); 4] = [
+    (DESCRIPTION_AREA.0 + 8, 136, 130),
+    (DESCRIPTION_AREA.0 + 148, 136, 130),
+    (DESCRIPTION_AREA.0 + 8, 200, 130),
+    (DESCRIPTION_AREA.0 + 148, 200, 130),
 ];
 
 pub fn render_combining(ctx: &mut Context, world: &mut World) -> GameResult<()> {
@@ -94,7 +94,14 @@ pub fn render_combining(ctx: &mut Context, world: &mut World) -> GameResult<()> 
                                 DESCRIPTION_AREA.0 + COLLIDE_OFFSET.0 as i32,
                                 DESCRIPTION_AREA.1 + COLLIDE_OFFSET.1 as i32,
                                 DESCRIPTION_SIZE.0,
-                            ));
+                            ))?;
+                            for (idx, combat_move) in spirit.moves.iter().enumerate() {
+                                text_in_box(ctx, &move_text(&combat_move), (
+                                    MOVES_OFFSETS[idx].0,
+                                    MOVES_OFFSETS[idx].1,
+                                    MOVES_OFFSETS[idx].2,
+                                ))?;
+                            }
                         }
                     }
                 }

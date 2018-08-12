@@ -73,6 +73,15 @@ pub fn collide_text(element: &SpiritType) -> String {
     }
 }
 
+pub fn move_text(combat_move: &Move) -> String {
+    format!("{}\n{}", combat_move.name, match combat_move.effect {
+        MoveType::DamageMany(amount) => format!("Deals ~{} damage to 3 enemies", amount),
+        MoveType::DamageOne(amount) => format!("Deals ~{} damage to an enemy", amount),
+        MoveType::Heal(amount) => format!("Heals you for ~{}", amount),
+        MoveType::Defend(amount) => format!("Raises your defence by ~{}", amount),
+    })
+}
+
 pub fn health(spirit: &Spirit) -> String {
     format!("{} / {}", spirit.health, spirit.max_health)
 }

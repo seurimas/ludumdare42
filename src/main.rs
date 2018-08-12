@@ -62,66 +62,9 @@ impl<'a, 'b> GameState<'a, 'b> {
         world.add_resource(InventoryState::new());
 
         let mut spirits = Vec::new();
-        let moves = [
-            Move {
-                name: "Attack".to_string(),
-                effect: MoveType::DamageOne(5),
-            },
-            Move {
-                name: "Defend".to_string(),
-                effect: MoveType::Defend(5),
-            },
-            Move {
-                name: "Special".to_string(),
-                effect: MoveType::DamageMany(3),
-            },
-            Move {
-                name: "Special Defense".to_string(),
-                effect: MoveType::Heal(10),
-            },
-        ];
-        spirits.push(Spirit {
-            element: SpiritType::Fire(0),
-            health: 10,
-            max_health: 10,
-            moves: moves.clone(),
-        });
-        spirits.push(Spirit {
-            element: SpiritType::Fire(0),
-            health: 10,
-            max_health: 10,
-            moves: moves.clone(),
-        });
-        spirits.push(Spirit {
-            element: SpiritType::Fire(0),
-            health: 10,
-            max_health: 10,
-            moves: moves.clone(),
-        });
-        spirits.push(Spirit {
-            element: SpiritType::Fire(0),
-            health: 10,
-            max_health: 10,
-            moves: moves.clone(),
-        });
-        spirits.push(Spirit {
-            element: SpiritType::Fire(0),
-            health: 10,
-            max_health: 10,
-            moves: moves.clone(),
-        });
-        spirits.push(Spirit {
-            element: SpiritType::Fire(0),
-            health: 10,
-            max_health: 10,
-            moves: moves.clone(),
-        });
-        spirits.push(Spirit {
-            element: SpiritType::Light(0),
-            health: 10,
-            max_health: 10,
-            moves: moves.clone(),
-        });
+        spirits.push(Spirit::new(SpiritType::Fire(0)));
+        spirits.push(Spirit::new(SpiritType::Water(0)));
+        spirits.push(Spirit::new(SpiritType::Slime(0)));
 
         world.create_entity()
             .with(WorldEntity { location: (1, 1) })

@@ -23,6 +23,43 @@ pub struct Move {
     pub effect: MoveType,
 }
 
+fn fire_moves() -> [Move; 8] {
+    [
+        Move {
+            name: "Blast".to_string(),
+            effect: MoveType::DamageOne(4),
+        },
+        Move {
+            name: "Scorch".to_string(),
+            effect: MoveType::DamageOne(7),
+        },
+        Move {
+            name: "Incinerate".to_string(),
+            effect: MoveType::DamageOne(10),
+        },
+        Move {
+            name: "Inferno".to_string(),
+            effect: MoveType::DamageMany(3),
+        },
+        Move {
+            name: "Decimate".to_string(),
+            effect: MoveType::DamageMany(6),
+        },
+        Move {
+            name: "Recombust".to_string(),
+            effect: MoveType::Heal(8),
+        },
+        Move {
+            name: "Resurge".to_string(),
+            effect: MoveType::Heal(16),
+        },
+        Move {
+            name: "Heat".to_string(),
+            effect: MoveType::Defend(2),
+        },
+    ]
+}
+
 #[derive(Component, Debug, Clone)]
 pub struct Damage {
     pub amount: usize,
@@ -72,28 +109,17 @@ impl Spirit {
         let mut rng = thread_rng();
         let max_health = ((1 + element.level()) * 10) +
             ((rng.gen::<f32>() + rng.gen::<f32>()) * 5.0) as u32;
-        println!("{}", max_health);
+        let mut moves = fire_moves();
+        rng.shuffle(&mut moves);
         Spirit {
             element,
             max_health,
             health: max_health,
             moves: [
-                Move {
-                    name: "Attack".to_string(),
-                    effect: MoveType::DamageOne(5),
-                },
-                Move {
-                    name: "Defend".to_string(),
-                    effect: MoveType::Defend(5),
-                },
-                Move {
-                    name: "Special".to_string(),
-                    effect: MoveType::DamageMany(3),
-                },
-                Move {
-                    name: "Special Defense".to_string(),
-                    effect: MoveType::Heal(10),
-                },
+                moves[0].clone(),
+                moves[1].clone(),
+                moves[2].clone(),
+                moves[3].clone(),
             ],
         }
     }
