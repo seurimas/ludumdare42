@@ -56,31 +56,25 @@ impl<'a, 'b> GameState<'a, 'b> {
         world.register::<PlayerSpirit>();
         world.register::<Player>();
         world.register::<CombatEffects>();
-        world.add_resource(Level::new());
+        let level = Level::new(0);
         world.add_resource(Camera::new(SCREEN_SIZE.0, SCREEN_SIZE.1));
         world.add_resource(BattleState::new());
-        world.add_resource(PlayState::Combining);
+        world.add_resource(PlayState::InWorld);
         world.add_resource(InputState::Rest);
         world.add_resource(InventoryState::new());
         world.add_resource(Duration::new(0, 0));
 
         let mut spirits = Vec::new();
-        spirits.push(Spirit::new(SpiritType::Fire(0)));
-        spirits.push(Spirit::new(SpiritType::Water(0)));
-        spirits.push(Spirit::new(SpiritType::Slime(0)));
+        spirits.push(Spirit::new(SpiritType::Fire(0), true));
+        spirits.push(Spirit::new(SpiritType::Water(0), true));
+        spirits.push(Spirit::new(SpiritType::Slime(0), true));
 
         world.create_entity()
-            .with(WorldEntity { location: (1, 1) })
+            .with(WorldEntity { location: (2, 2) })
             .with(Player { spirits: spirits.clone() })
             .build();
-        world.create_entity()
-            .with(WorldEntity {
-                location: (2, 2),
-            })
-            .with(Encounter {
-                spirits,
-            })
-            .build();
+        level.spawn_encounters(&mut world);
+        world.add_resource(level);
 
         let dispatcher = DispatcherBuilder::new()
             .with(HandleMove, "move", &[])
@@ -89,10 +83,11 @@ impl<'a, 'b> GameState<'a, 'b> {
             .with(HandleLootMenu, "looting", &[])
             .with(CameraSystem, "camera", &[])
             .with(FindEncounters, "find", &[])
+            .with(WanderEncounters, "wander", &[])
             .with(WatchAttack, "attack", &[])
             .with(WatchSpirits, "spirits", &[])
-            .with(EnemyCombat, "enemy_attack", &[])
-            .with(TickEffects, "tick_combat", &[])
+            .with(TickEffects, "tick_combat", &["attack"])
+            .with(EnemyCombat, "enemy_attack", &["tick_combat"])
             .build();
 
         GameState {

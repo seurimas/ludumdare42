@@ -22,6 +22,19 @@ pub fn spirit_sprite(
     let (pu, pv) = match element {
         SpiritType::Fire(0) => (0.0, 32.0),
         SpiritType::Fire(1) => (32.0, 32.0),
+        SpiritType::Fire(2) => (64.0, 32.0),
+        SpiritType::Water(0) => (0.0, 64.0),
+        SpiritType::Water(1) => (32.0, 64.0),
+        SpiritType::Water(2) => (64.0, 64.0),
+        SpiritType::Slime(0) => (0.0, 96.0),
+        SpiritType::Slime(1) => (32.0, 96.0),
+        SpiritType::Slime(2) => (64.0, 96.0),
+        SpiritType::Dark(0) => (0.0, 128.0),
+        SpiritType::Dark(1) => (32.0, 128.0),
+        SpiritType::Dark(2) => (64.0, 128.0),
+        SpiritType::Light(0) => (0.0, 160.0),
+        SpiritType::Light(1) => (32.0, 160.0),
+        SpiritType::Light(2) => (64.0, 160.0),
         _ => (448.0, 448.0),
     };
     let src = sprite_src(pu, pv, INVENTORY_SPRITE_SIZE.0, INVENTORY_SPRITE_SIZE.1);

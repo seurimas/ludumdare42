@@ -3,44 +3,6 @@ use specs::*;
 use state::*;
 use input::Direction;
 
-fn move_by(loc: (u32, u32), direction: &Direction) -> Option<(u32, u32)> {
-    match direction {
-        Direction::Up => {
-            if loc.1 > 0 {
-                Some((loc.0, loc.1 - 1))
-            } else {
-                None
-            }
-        },
-        Direction::Down => {
-            Some((loc.0, loc.1 + 1))
-        },
-        Direction::Left => {
-            if loc.0 > 0 {
-                Some((loc.0 - 1, loc.1))
-            } else {
-                None
-            }
-        },
-        Direction::Right => {
-            Some((loc.0 + 1, loc.1))
-        },
-    }
-}
-
-fn move_in_level(loc: (u32, u32), direction: &Direction, level: &Level) -> Option<(u32, u32)> {
-    match move_by(loc, direction) {
-        Some(next) => {
-            if level.has_tile(next) {
-                Some(next)
-            } else {
-                None
-            }
-        },
-        None => None,
-    }
-}
-
 pub struct HandleMove;
 impl<'a> System<'a> for HandleMove {
     type SystemData = (

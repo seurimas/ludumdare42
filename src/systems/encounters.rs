@@ -1,6 +1,37 @@
 use ggez::*;
 use specs::*;
 use state::*;
+use input::*;
+use std::time::Duration;
+use rand::*;
+
+pub struct WanderEncounters;
+impl<'a> System<'a> for WanderEncounters {
+    type SystemData = (
+        WriteStorage<'a, Encounter>,
+        WriteStorage<'a, WorldEntity>,
+        ReadExpect<'a, Level>,
+        ReadExpect<'a, Duration>,
+    );
+    fn run(&mut self, (mut encounters, mut world_entities, level, delta_time): Self::SystemData) {
+        let mut rng = thread_rng();
+        for (encounter, world_entity) in (&mut encounters, &mut world_entities).join() {
+            if encounter.update(*delta_time) {
+                let direction = rng.choose(&[
+                    Direction::Up,
+                    Direction::Right,
+                    Direction::Down,
+                    Direction::Left,
+                ]);
+                if let Some(direction) = direction {
+                    if let Some(moved) = move_in_level(world_entity.location, direction, &level) {
+                        world_entity.location = moved;
+                    }
+                }
+            }
+        }
+    }
+}
 
 pub struct FindEncounters;
 impl<'a> System<'a> for FindEncounters {

@@ -20,7 +20,7 @@ use self::sprites::*;
 
 pub fn render_world(ctx: &mut Context, world: &mut World) -> GameResult<()> {
     let play_state = world.read_resource::<PlayState>().clone();
-    println!("{:?}", play_state);
+    // println!("{:?}", play_state);
     match play_state {
         PlayState::InWorld => {
             render_in_world(ctx, world)

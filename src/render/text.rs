@@ -7,7 +7,7 @@ pub fn spirit_name(element: &SpiritType) -> String {
     match element {
         SpiritType::Fire(0) => "Ember",
         SpiritType::Fire(1) => "Fire Elemental",
-        SpiritType::Fire(2) => "Efreet",
+        SpiritType::Fire(2) => "Grand Efreet",
 
         SpiritType::Water(0) => "Nymph",
         SpiritType::Water(1) => "Water Maiden",
@@ -19,11 +19,11 @@ pub fn spirit_name(element: &SpiritType) -> String {
 
         SpiritType::Dark(0) => "Imp",
         SpiritType::Dark(1) => "Fiend",
-        SpiritType::Dark(2) => "Dominator",
+        SpiritType::Dark(2) => "War sDominator",
 
         SpiritType::Light(0) => "Wisp",
         SpiritType::Light(1) => "Guardian",
-        SpiritType::Light(2) => "Angel",
+        SpiritType::Light(2) => "Holy Angel",
 
         _ => "Unknown",
     }.to_string()
@@ -44,30 +44,30 @@ pub fn collide_text(element: &SpiritType) -> String {
         format!("Cannot exceed its current power")
     } else {
         match element {
-            SpiritType::Fire(level) => format!("Can combust with {} other {} to become a {}",
+            SpiritType::Fire(level) => format!("Can combust with {} {} to become a {}",
                 required_spirits(element),
                 spirit_name(element),
                 spirit_name(&SpiritType::Fire(level + 1)),
             ),
-            SpiritType::Water(level) => format!("Can mingle with {} other {} to become a {}",
+            SpiritType::Water(level) => format!("Can mingle with {} {} to become a {}",
                 required_spirits(element),
                 spirit_name(element),
                 spirit_name(&SpiritType::Water(level + 1)),
             ),
-            SpiritType::Slime(level) => format!("Can absorb {} other {} to become a {}",
+            SpiritType::Slime(level) => format!("Can absorb {} {} to become a {}",
                 required_spirits(element),
                 spirit_name(element),
-                spirit_name(&SpiritType::Fire(level + 1)),
+                spirit_name(&SpiritType::Slime(level + 1)),
             ),
-            SpiritType::Light(level) => format!("Can accept the sacrifies of {} other {} to become a {}",
+            SpiritType::Light(level) => format!("Can accept the sacrifies of {} {} to become a {}",
                 required_spirits(element),
                 spirit_name(element),
-                spirit_name(&SpiritType::Fire(level + 1)),
+                spirit_name(&SpiritType::Light(level + 1)),
             ),
-            SpiritType::Dark(level) => format!("Can consume {} other {} to become a {}",
+            SpiritType::Dark(level) => format!("Can consume {} {} to become a {}",
                 required_spirits(element),
                 spirit_name(element),
-                spirit_name(&SpiritType::Fire(level + 1)),
+                spirit_name(&SpiritType::Dark(level + 1)),
             ),
         }
     }
