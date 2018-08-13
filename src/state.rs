@@ -23,7 +23,7 @@ pub enum MoveType {
 impl MoveType {
     pub fn actual_amount(&self, attacker: &Spirit, defender: &Spirit) -> u32 {
         let mut rng = thread_rng();
-        let attack = attacker.attack * attacker.element.level();
+        let attack = attacker.attack * (attacker.element.level() + 1);
         let defense = defender.defense;
         let stamina = attacker.stamina;
         let type_advantage = attacker.element.type_advantage(&defender.element);
@@ -566,7 +566,7 @@ pub struct BattleState {
     pub retreating: bool,
     pub enemy_attacking: Option<u32>,
     pub activate: bool,
-    animating: bool,
+    pub animating: bool,
     pub combat_move: Option<usize>,
     pub active_entity: Option<Entity>,
     pub encounter_entity: Option<Entity>,

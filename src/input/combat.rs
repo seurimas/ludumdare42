@@ -37,7 +37,7 @@ impl<'a> System<'a> for HandleBattleMenu {
     fn run(&mut self, (play_state, mut input_state, mut battle_state, sounds): Self::SystemData) {
         match (play_state.clone(), input_state.clone(), battle_state.retreating, battle_state.notifying()) {
             (PlayState::InBattle, input, false, true) => {
-                if input != InputState::Rest {
+                if input != InputState::Rest && !battle_state.animating {
                     sounds.play(&sounds.confirm);
                     battle_state.clear_notification();
                     *input_state = InputState::Rest;
