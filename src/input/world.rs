@@ -11,8 +11,9 @@ impl<'a> System<'a> for HandleMove {
         ReadExpect<'a, Level>,
         WriteStorage<'a, WorldEntity>,
         ReadStorage<'a, Player>,
+        ReadExpect<'a, Sounds>,
     );
-    fn run(&mut self, (mut play_state, mut input_state, level, mut world_entities, players): Self::SystemData) {
+    fn run(&mut self, (mut play_state, mut input_state, level, mut world_entities, players, sounds): Self::SystemData) {
         match (play_state.clone(), input_state.clone()) {
             (PlayState::InWorld, InputState::Move(direction)) => {
                 for (mut world_entity, player) in (&mut world_entities, &players).join() {
@@ -24,6 +25,7 @@ impl<'a> System<'a> for HandleMove {
                 *input_state = InputState::Rest;
             },
             (PlayState::InWorld, InputState::Escape) => {
+                sounds.play(&sounds.cancel);
                 *input_state = InputState::Rest;
                 *play_state = PlayState::Combining;
             }

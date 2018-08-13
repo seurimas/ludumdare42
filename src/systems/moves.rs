@@ -8,11 +8,11 @@ fn get_active_enemies<'a>(
     entities: &Entities<'a>,
     spirits: &WriteStorage<'a, Spirit>,
     player_spirits: &ReadStorage<'a, PlayerSpirit>
-) -> Vec<Entity> {
+) -> Vec<(Entity, Spirit)> {
     let mut affected = Vec::new();
     for (entity, spirit, ()) in (&**entities, spirits, !player_spirits).join() {
         if spirit.health > 0 && affected.len() < amount {
-            affected.push(entity.clone());
+            affected.push((entity.clone(), spirit.clone()));
         }
     }
     affected
@@ -40,44 +40,55 @@ impl<'a> System<'a> for WatchAttack {
         WriteStorage<'a, Spirit>,
         ReadStorage<'a, PlayerSpirit>,
         WriteStorage<'a, CombatEffects>,
+        ReadExpect<'a, Sounds>,
     );
 
-    fn run(&mut self, (mut battle_state, mut entities, mut spirits, player_spirits, mut combat_effects): Self::SystemData) {
+    fn run(&mut self, (mut battle_state, mut entities, mut spirits, player_spirits, mut combat_effects, sounds): Self::SystemData) {
         if battle_state.activate {
             let my_move = battle_state.get_move(&spirits);
-            match my_move.map(|v| v.effect) {
-                Some(MoveType::DamageMany(amount)) => {
-                    let affected = get_active_enemies(
-                        3,
-                        &entities,
-                        &spirits,
-                        &player_spirits,
-                    );
-                    for entity in affected.iter() {
-                        combat_effects.insert(*entity, CombatEffects::new(vec![CombatEffect::Damage(amount)]));
+            if let (Some(player), Some(my_move))
+                = (get_active_ally(&entities, &spirits, &player_spirits), my_move) {
+                if let Some(player_spirit) = spirits.get(player) {
+                    match my_move.effect {
+                        MoveType::DamageMany(amount) => {
+                            let affected = get_active_enemies(
+                                3,
+                                &entities,
+                                &spirits,
+                                &player_spirits,
+                            );
+                            for (entity, enemy) in affected.iter() {
+                                let amount = my_move.effect.actual_amount(&player_spirit, enemy);
+                                combat_effects.insert(*entity, CombatEffects::new(vec![CombatEffect::Damage(amount)]));
+                            }
+                            sounds.sound_for_attack(player_spirit);
+                            battle_state.finish_attack();
+                        },
+                        MoveType::DamageOne(amount) => {
+                            let affected = get_active_enemies(
+                                1,
+                                &entities,
+                                &spirits,
+                                &player_spirits,
+                            );
+                            for (entity, enemy) in affected.iter() {
+                                let amount = my_move.effect.actual_amount(&player_spirit, enemy);
+                                combat_effects.insert(*entity, CombatEffects::new(vec![CombatEffect::Damage(amount), CombatEffect::ShedDefense(1)]));
+                            }
+                            sounds.sound_for_attack(player_spirit);
+                            battle_state.finish_attack();
+                        },
+                        MoveType::Heal(amount) => {
+                            let amount = my_move.effect.actual_amount(&player_spirit, &player_spirit);
+                            combat_effects.insert(player, CombatEffects::new(vec![CombatEffect::Heal(amount)]));
+                            battle_state.finish_attack();
+                        },
+                        MoveType::Defend(amount) => {
+                            let amount = my_move.effect.actual_amount(&player_spirit, &player_spirit);
+                            combat_effects.insert(player, CombatEffects::new(vec![CombatEffect::Defense(amount)]));
+                            battle_state.finish_attack();
+                        },
                     }
-                    battle_state.finish_attack();
-                },
-                Some(MoveType::DamageOne(amount)) => {
-                    let affected = get_active_enemies(
-                        1,
-                        &entities,
-                        &spirits,
-                        &player_spirits,
-                    );
-                    for entity in affected.iter() {
-                        combat_effects.insert(*entity, CombatEffects::new(vec![CombatEffect::Damage(amount)]));
-                    }
-                    battle_state.finish_attack();
-                },
-                Some(MoveType::Heal(amount)) => {
-                    if let Some(player) = get_active_ally(&entities, &spirits, &player_spirits) {
-                        combat_effects.insert(player, CombatEffects::new(vec![CombatEffect::Heal(amount)]));
-                    }
-                    battle_state.finish_attack();
-                },
-                _ => {
-
                 }
             }
         }
@@ -92,13 +103,16 @@ impl<'a> System<'a> for TickEffects {
         WriteStorage<'a, CombatEffects>,
         Read<'a, Duration>,
         Write<'a, BattleState>,
+        ReadExpect<'a, Sounds>,
     );
 
-    fn run(&mut self, (entities, mut spirits, mut combat_effects, delta_time, mut battle_state): Self::SystemData) {
+    fn run(&mut self, (entities, mut spirits, mut combat_effects, delta_time, mut battle_state, sounds): Self::SystemData) {
         let mut completed = Vec::new();
         for (entity, spirit, combat_effect) in (&*entities, &mut spirits, &mut combat_effects).join() {
             if combat_effect.update(*delta_time) {
+                println!("{:?}", combat_effect);
                 combat_effect.apply_tick(spirit);
+                sounds.play(&sounds.blip);
             }
             if !combat_effect.active() {
                 completed.push(entity.clone());
@@ -110,8 +124,9 @@ impl<'a> System<'a> for TickEffects {
         let mut animating = false;
         for (entity, spirit, combat_effect) in (&*entities, &mut spirits, &mut combat_effects).join() {
             animating = true;
+            println!("{:?}", *battle_state);
         }
-        battle_state.animating = animating;
+        battle_state.set_animating(animating);
     }
 }
 
@@ -124,9 +139,10 @@ impl<'a> System<'a> for WatchSpirits {
         ReadStorage<'a, Spirit>,
         WriteStorage<'a, PlayerSpirit>,
         WriteStorage<'a, Player>,
+        ReadExpect<'a, Sounds>,
     );
 
-    fn run(&mut self, (mut battle_state, mut play_state, entities, spirits, mut player_spirits, mut players): Self::SystemData) {
+    fn run(&mut self, (mut battle_state, mut play_state, entities, spirits, mut player_spirits, mut players, sounds): Self::SystemData) {
         if *play_state == PlayState::InBattle {
             let mut players_alive = false;
             let mut retreating = true;
@@ -146,6 +162,7 @@ impl<'a> System<'a> for WatchSpirits {
                 ()
             }
             if !battle_state.retreating && retreating {
+                sounds.lose.play();
                 battle_state.retreat();
             }
             let mut enemies_alive = false;

@@ -100,6 +100,15 @@ pub fn render_inventory(ctx: &mut Context, world: &mut World, is_retreat: bool) 
                                 DESCRIPTION_AREA.0 as f32 + HEALTH_OFFSET.0,
                                 DESCRIPTION_AREA.1 as f32 + HEALTH_OFFSET.1,
                             ), 0.0)?;
+                            let text = Text::new(
+                                ctx,
+                                &iv_text(&spirit),
+                                &font,
+                            )?;
+                            draw(ctx, &text, Point2::new(
+                                DESCRIPTION_AREA.0 as f32 + HEALTH_OFFSET.0 + 16.0,
+                                DESCRIPTION_AREA.1 as f32 + HEALTH_OFFSET.1 + 16.0,
+                            ), 0.0)?;
                             text_in_box(ctx, &collide_text(&spirit.element), (
                                 DESCRIPTION_AREA.0 + COLLIDE_OFFSET.0 as i32,
                                 DESCRIPTION_AREA.1 + COLLIDE_OFFSET.1 as i32,

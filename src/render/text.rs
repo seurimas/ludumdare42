@@ -76,14 +76,128 @@ pub fn collide_text(element: &SpiritType) -> String {
 pub fn move_text(combat_move: &Move) -> String {
     format!("{}\n{}", combat_move.name, match combat_move.effect {
         MoveType::DamageMany(amount) => format!("Deals ~{} damage to 3 enemies", amount),
-        MoveType::DamageOne(amount) => format!("Deals ~{} damage to an enemy", amount),
+        MoveType::DamageOne(amount) => format!("Deals ~{} damage and strips defense", amount),
         MoveType::Heal(amount) => format!("Heals you for ~{}", amount),
         MoveType::Defend(amount) => format!("Raises your defence by ~{}", amount),
     })
 }
 
+pub fn damage_one_text(combat_move: &Move, spirit: &Spirit, target: &Spirit, amount: u32, is_enemy: bool) -> String {
+    format!("{} uses {}!\nIt deals {} damage to {} {}!",
+        spirit_name(&spirit.element),
+        combat_move.name,
+        amount,
+        match is_enemy {
+            true => "your",
+            false => "the enemy",
+        },
+        spirit_name(&target.element),
+    )
+}
+
+pub fn heal_text(combat_move: &Move, spirit: &Spirit, amount: u32) -> String {
+    format!("{} uses {}!\nIt heals {}!",
+        spirit_name(&spirit.element),
+        combat_move.name,
+        amount,
+    )
+}
+
+pub fn defense_text(combat_move: &Move, spirit: &Spirit, amount: u32) -> String {
+    format!("{} uses {}!\nIt raises its defense by {}!",
+        spirit_name(&spirit.element),
+        combat_move.name,
+        amount,
+    )
+}
+
 pub fn health(spirit: &Spirit) -> String {
     format!("{} / {}", spirit.health, spirit.max_health)
+}
+
+pub fn iv_text(spirit: &Spirit) -> String {
+    let attack_rating = match spirit.attack {
+        0 => "F-",
+        1 => "F",
+        2 => "F+",
+        3 => "D-",
+        4 => "D",
+        5 => "D+",
+        6 => "C-",
+        7 => "C",
+        8 => "C+",
+        9 => "B-",
+        10 => "B",
+        11 => "B+",
+        12 => "A-",
+        13 => "A",
+        _ => "A+",
+    };
+    let stamina_rating = match spirit.stamina {
+        0 => "F-",
+        1 => "F",
+        2 => "F+",
+        3 => "D-",
+        4 => "D",
+        5 => "D+",
+        6 => "C-",
+        7 => "C",
+        8 => "C+",
+        9 => "B-",
+        10 => "B",
+        11 => "B+",
+        12 => "A-",
+        13 => "A",
+        _ => "A+",
+    };
+    let defense_rating = match spirit.base_defense {
+        0 => "F",
+        1 => "D",
+        2 => "C",
+        3 => "B",
+        _ => "A",
+    };
+    format!("Ratings: x({})h({})d({})", attack_rating, stamina_rating, defense_rating)
+}
+
+pub fn text_outline(ctx: &mut Context, region: (i32, i32, i32, i32)) -> GameResult<()> {
+    set_color(ctx, [0.0, 0.0, 0.0, 1.0].into())?;
+    rectangle(ctx, DrawMode::Fill, Rect::new_i32(
+        region.0,
+        region.1,
+        region.2,
+        region.3,
+    ))?;
+    set_color(ctx, [1.0, 1.0, 1.0, 1.0].into())?;
+    rectangle(ctx, DrawMode::Line(2.0), Rect::new_i32(
+        region.0 + 4,
+        region.1 + 4,
+        region.2 - 8,
+        region.3 - 8,
+    ))?;
+    Ok(())
+}
+
+pub fn text_outline_color(
+    ctx: &mut Context,
+    region: (i32, i32, i32, i32),
+    line_color: Color
+) -> GameResult<()> {
+    set_color(ctx, [0.0, 0.0, 0.0, 1.0].into())?;
+    rectangle(ctx, DrawMode::Fill, Rect::new_i32(
+        region.0,
+        region.1,
+        region.2,
+        region.3,
+    ))?;
+    set_color(ctx, line_color)?;
+    rectangle(ctx, DrawMode::Line(2.0), Rect::new_i32(
+        region.0 + 4,
+        region.1 + 4,
+        region.2 - 8,
+        region.3 - 8,
+    ))?;
+    Ok(())
 }
 
 pub fn text_in_box(ctx: &mut Context, text: &String, region: (i32, i32, i32)) -> GameResult<()> {

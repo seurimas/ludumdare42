@@ -32,10 +32,18 @@ impl<'a> System<'a> for HandleBattleMenu {
         ReadExpect<'a, PlayState>,
         WriteExpect<'a, InputState>,
         WriteExpect<'a, BattleState>,
+        ReadExpect<'a, Sounds>,
     );
-    fn run(&mut self, (play_state, mut input_state, mut battle_state): Self::SystemData) {
-        match (play_state.clone(), input_state.clone(), battle_state.retreating) {
-            (PlayState::InBattle, InputState::Move(direction), false) => {
+    fn run(&mut self, (play_state, mut input_state, mut battle_state, sounds): Self::SystemData) {
+        match (play_state.clone(), input_state.clone(), battle_state.retreating, battle_state.notifying()) {
+            (PlayState::InBattle, input, false, true) => {
+                if input != InputState::Rest {
+                    sounds.play(&sounds.confirm);
+                    battle_state.clear_notification();
+                    *input_state = InputState::Rest;
+                }
+            },
+            (PlayState::InBattle, InputState::Move(direction), false, _) => {
                 if let Some(index) = battle_state.combat_move {
                     let next_index = (match direction {
                         Direction::Up => index + 4 - 2,
@@ -46,11 +54,16 @@ impl<'a> System<'a> for HandleBattleMenu {
                     battle_state.combat_move = Some(
                         next_index,
                     );
+                    sounds.play(&sounds.blip);
                 }
                 *input_state = InputState::Rest;
             },
-            (PlayState::InBattle, InputState::Select, false) => {
+            (PlayState::InBattle, InputState::Select, false, _) => {
                 battle_state.want_attack();
+                *input_state = InputState::Rest;
+            }
+            (PlayState::InBattle, InputState::Escape, false, _) => {
+                battle_state.retreat();
                 *input_state = InputState::Rest;
             }
             _ => {}

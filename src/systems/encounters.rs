@@ -41,11 +41,13 @@ impl<'a> System<'a> for FindEncounters {
         Entities<'a>,
         ReadStorage<'a, WorldEntity>,
         ReadStorage<'a, Encounter>,
+        ReadStorage<'a, Stair>,
         ReadStorage<'a, Player>,
         WriteStorage<'a, Spirit>,
         WriteStorage<'a, PlayerSpirit>,
+        ReadExpect<'a, Sounds>,
     );
-    fn run(&mut self, (mut play_state, mut battle_state, entities, world_entities, encounters, player_store, mut spirits, mut player_spirits): Self::SystemData) {
+    fn run(&mut self, (mut play_state, mut battle_state, entities, world_entities, encounters, stairs, player_store, mut spirits, mut player_spirits, sounds): Self::SystemData) {
         if *play_state == PlayState::InWorld {
             let mut player_loc = (0, 0);
             let mut player = None;
@@ -54,6 +56,11 @@ impl<'a> System<'a> for FindEncounters {
                 player = Some(player_comp.clone());
             }
             if let Some(player) = player {
+                for (entity, world_entity, stairs) in (&*entities, &world_entities, &stairs).join() {
+                    if world_entity.location == player_loc {
+                        *play_state = PlayState::Stairs(stairs.depth);
+                    }
+                }
                 for (entity, world_entity, encounter) in (&*entities, &world_entities, &encounters).join() {
                     if world_entity.location == player_loc {
                         battle_state.encounter_entity = Some(entity);
@@ -74,9 +81,12 @@ impl<'a> System<'a> for FindEncounters {
                                 battle_state.active_entity = Some(entity);
                                 battle_state.in_combat = true;
                                 battle_state.activate = false;
+                                battle_state.enemy_attacking = None;
+                                battle_state.notification = None;
                             }
                             active = false;
                         }
+                        sounds.play(&sounds.encounter);
                     }
                 }
             }

@@ -10,6 +10,7 @@ mod input;
 mod systems;
 use specs::*;
 use ggez::*;
+use ggez::audio::*;
 use ggez::graphics::*;
 use ggez::graphics::spritebatch::*;
 use ggez::event::*;
@@ -17,6 +18,7 @@ use render::render_world;
 use state::*;
 use input::*;
 use systems::*;
+use std::path;
 use std::path::Path;
 use std::collections::*;
 use std::time::Duration;
@@ -56,31 +58,21 @@ impl<'a, 'b> GameState<'a, 'b> {
         world.register::<PlayerSpirit>();
         world.register::<Player>();
         world.register::<CombatEffects>();
-        let level = Level::new(0);
+        world.register::<Stair>();
         world.add_resource(Camera::new(SCREEN_SIZE.0, SCREEN_SIZE.1));
         world.add_resource(BattleState::new());
-        world.add_resource(PlayState::InWorld);
+        world.add_resource(PlayState::MainMenu(0));
         world.add_resource(InputState::Rest);
         world.add_resource(InventoryState::new());
         world.add_resource(Duration::new(0, 0));
-
-        let mut spirits = Vec::new();
-        spirits.push(Spirit::new(SpiritType::Fire(0), true));
-        spirits.push(Spirit::new(SpiritType::Water(0), true));
-        spirits.push(Spirit::new(SpiritType::Slime(0), true));
-
-        world.create_entity()
-            .with(WorldEntity { location: (2, 2) })
-            .with(Player { spirits: spirits.clone() })
-            .build();
-        level.spawn_encounters(&mut world);
-        world.add_resource(level);
+        world.add_resource(Level::new(0));
 
         let dispatcher = DispatcherBuilder::new()
             .with(HandleMove, "move", &[])
             .with(HandleBattleMenu, "battle_menu", &[])
             .with(HandleInventory, "inventory", &[])
             .with(HandleLootMenu, "looting", &[])
+            .with(HandleMainMenu, "main_menu", &[])
             .with(CameraSystem, "camera", &[])
             .with(FindEncounters, "find", &[])
             .with(WanderEncounters, "wander", &[])
@@ -96,10 +88,49 @@ impl<'a, 'b> GameState<'a, 'b> {
         }
     }
 
+    fn sound<P: AsRef<path::Path>>(context: &mut Context, path: P) -> GameResult<Source> {
+        let mut sound = Source::new(context, path)?;
+        sound.set_repeat(false);
+        sound.set_volume(100.0);
+        Ok(sound)
+    }
+
     fn init(&mut self, ctx: &mut Context) -> GameResult<()> {
         let image = Image::new(ctx, &"/Sprites.png")?;
+        let fire = GameState::sound(ctx, &"/fire_attack.wav")?;
+        let mut water = GameState::sound(ctx, &"/water_attack.wav")?;
+        let mut slime = GameState::sound(ctx, &"/slime_attack.wav")?;
+        let mut light = GameState::sound(ctx, &"/light_attack.wav")?;
+        let mut dark = GameState::sound(ctx, &"/dark_attack.wav")?;
+        let mut blip = GameState::sound(ctx, &"/blip.wav")?;
+        let mut cancel = GameState::sound(ctx, &"/cancel.wav")?;
+        let mut collide = GameState::sound(ctx, &"/collide.wav")?;
+        let mut confirm = GameState::sound(ctx, &"/confirm.wav")?;
+        let mut encounter = GameState::sound(ctx, &"/encounter.wav")?;
+        let mut lose = GameState::sound(ctx, &"/lose.wav")?;
         self.world.add_resource(SpriteBatch::new(image));
+        self.world.add_resource(Sounds {
+            fire,
+            water,
+            slime,
+            light,
+            dark,
+            blip,
+            cancel,
+            collide,
+            confirm,
+            encounter,
+            lose,
+            pending: Vec::new(),
+        });
         Ok(())
+    }
+    fn wants_level(&self) -> Option<u32> {
+        if let PlayState::Stairs(depth) = *self.world.read_resource::<PlayState>() {
+            Some(depth)
+        } else {
+            None
+        }
     }
 }
 
@@ -107,6 +138,12 @@ impl<'a, 'b> EventHandler for GameState<'a, 'b> {
     fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
         self.world.add_resource(ggez::timer::get_delta(&ctx));
         self.dispatcher.dispatch(&mut self.world.res);
+        if let Some(depth) = self.wants_level() {
+            let level = Level::new(depth);
+            level.spawn_encounters(&mut self.world);
+            self.world.add_resource(level);
+            self.world.add_resource(PlayState::InWorld);
+        }
         self.world.maintain();
         Ok(())
     }
@@ -115,6 +152,7 @@ impl<'a, 'b> EventHandler for GameState<'a, 'b> {
         graphics::clear(ctx);
         self.world.write_resource::<SpriteBatch>().clear();
         render_world(ctx, &mut self.world)?;
+        graphics::set_color(ctx, [1.0, 1.0, 1.0, 1.0].into())?;
         graphics::draw(
             ctx,
             &*self.world.read_resource::<SpriteBatch>(),

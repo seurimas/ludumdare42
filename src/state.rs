@@ -1,4 +1,5 @@
 use ggez::*;
+use ggez::audio::Source;
 use specs::*;
 use std::collections::HashMap;
 use input::Direction;
@@ -19,10 +20,80 @@ pub enum MoveType {
     Defend(u32),
 }
 
+impl MoveType {
+    pub fn actual_amount(&self, attacker: &Spirit, defender: &Spirit) -> u32 {
+        let mut rng = thread_rng();
+        let attack = attacker.attack * attacker.element.level();
+        let defense = defender.defense;
+        let stamina = attacker.stamina;
+        let type_advantage = attacker.element.type_advantage(&defender.element);
+        let amount = match self {
+            MoveType::DamageMany(x) => {
+                let calculated = *x as f32
+                    + (*x as f32 * (attack as f32 - 8.0) as f32 / 45.0); // Base attack.
+                let calculated = calculated + (rng.gen::<f32>() * calculated) / 10.0;
+                let calculated = calculated * (1.0 + 0.5 * type_advantage as f32);
+                let calculated = calculated - (defense * defense) as f32;
+                cmp::max(1, calculated as i32) as u32
+            },
+            MoveType::DamageOne(x) => {
+                let calculated = *x as f32
+                    + (*x as f32 * (attack as f32 - 8.0) as f32 / 45.0); // Base attack.
+                let calculated = calculated + (rng.gen::<f32>() * calculated) / 10.0;
+                let calculated = calculated * (1.0 + 0.5 * type_advantage as f32);
+                let calculated = calculated - (defense * defense / 4) as f32;
+                cmp::max(1, calculated as i32) as u32
+            },
+            MoveType::Heal(x) => {
+                cmp::max(1, *x as i32 + stamina as i32) as u32
+            },
+            MoveType::Defend(x) => *x,
+        };
+        amount
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Move {
     pub name: String,
     pub effect: MoveType,
+}
+
+fn enemy_moves() -> [Move; 8] {
+    [
+        Move {
+            name: "(Fight)".to_string(),
+            effect: MoveType::DamageOne(2),
+        },
+        Move {
+            name: "(Advance)".to_string(),
+            effect: MoveType::DamageOne(4),
+        },
+        Move {
+            name: "(Thrash)".to_string(),
+            effect: MoveType::DamageMany(3),
+        },
+        Move {
+            name: "(Revive)".to_string(),
+            effect: MoveType::Heal(4),
+        },
+        Move {
+            name: "(Thrash)".to_string(),
+            effect: MoveType::DamageMany(3),
+        },
+        Move {
+            name: "(Thrash)".to_string(),
+            effect: MoveType::DamageMany(3),
+        },
+        Move {
+            name: "(Revive)".to_string(),
+            effect: MoveType::Heal(4),
+        },
+        Move {
+            name: "(Defend))".to_string(),
+            effect: MoveType::Defend(2),
+        },
+    ]
 }
 
 fn fire_moves() -> [Move; 8] {
@@ -62,11 +133,160 @@ fn fire_moves() -> [Move; 8] {
     ]
 }
 
+fn water_moves() -> [Move; 8] {
+    [
+        Move {
+            name: "Squirt".to_string(),
+            effect: MoveType::DamageOne(4),
+        },
+        Move {
+            name: "Jet".to_string(),
+            effect: MoveType::DamageOne(7),
+        },
+        Move {
+            name: "Wave".to_string(),
+            effect: MoveType::DamageOne(10),
+        },
+        Move {
+            name: "Deluge".to_string(),
+            effect: MoveType::DamageMany(3),
+        },
+        Move {
+            name: "Tsunami".to_string(),
+            effect: MoveType::DamageMany(6),
+        },
+        Move {
+            name: "Bubble".to_string(),
+            effect: MoveType::Heal(8),
+        },
+        Move {
+            name: "Refill".to_string(),
+            effect: MoveType::Heal(16),
+        },
+        Move {
+            name: "Raise Tides".to_string(),
+            effect: MoveType::Defend(2),
+        },
+    ]
+}
+
+fn slime_moves() -> [Move; 8] {
+    [
+        Move {
+            name: "Nibble".to_string(),
+            effect: MoveType::DamageOne(4),
+        },
+        Move {
+            name: "Chomp".to_string(),
+            effect: MoveType::DamageOne(7),
+        },
+        Move {
+            name: "Consume".to_string(),
+            effect: MoveType::DamageOne(10),
+        },
+        Move {
+            name: "Pummel".to_string(),
+            effect: MoveType::DamageMany(3),
+        },
+        Move {
+            name: "Explode".to_string(),
+            effect: MoveType::DamageMany(6),
+        },
+        Move {
+            name: "Reform".to_string(),
+            effect: MoveType::Heal(8),
+        },
+        Move {
+            name: "Eat".to_string(),
+            effect: MoveType::Heal(16),
+        },
+        Move {
+            name: "Harden".to_string(),
+            effect: MoveType::Defend(2),
+        },
+    ]
+}
+
+fn dark_moves() -> [Move; 8] {
+    [
+        Move {
+            name: "Scold".to_string(),
+            effect: MoveType::DamageOne(4),
+        },
+        Move {
+            name: "Punish".to_string(),
+            effect: MoveType::DamageOne(7),
+        },
+        Move {
+            name: "Eviscerate".to_string(),
+            effect: MoveType::DamageOne(10),
+        },
+        Move {
+            name: "Dominate".to_string(),
+            effect: MoveType::DamageMany(3),
+        },
+        Move {
+            name: "Destroy".to_string(),
+            effect: MoveType::DamageMany(6),
+        },
+        Move {
+            name: "Unholy Health".to_string(),
+            effect: MoveType::Heal(8),
+        },
+        Move {
+            name: "Unholy Greed".to_string(),
+            effect: MoveType::Heal(16),
+        },
+        Move {
+            name: "Unholy Armor".to_string(),
+            effect: MoveType::Defend(2),
+        },
+    ]
+}
+
+fn light_moves() -> [Move; 8] {
+    [
+        Move {
+            name: "Slash".to_string(),
+            effect: MoveType::DamageOne(4),
+        },
+        Move {
+            name: "Bash".to_string(),
+            effect: MoveType::DamageOne(7),
+        },
+        Move {
+            name: "Avenge".to_string(),
+            effect: MoveType::DamageOne(10),
+        },
+        Move {
+            name: "Radiant".to_string(),
+            effect: MoveType::DamageMany(3),
+        },
+        Move {
+            name: "Great Light".to_string(),
+            effect: MoveType::DamageMany(6),
+        },
+        Move {
+            name: "Heal".to_string(),
+            effect: MoveType::Heal(8),
+        },
+        Move {
+            name: "Resurrect".to_string(),
+            effect: MoveType::Heal(16),
+        },
+        Move {
+            name: "Protect".to_string(),
+            effect: MoveType::Defend(2),
+        },
+    ]
+}
+
 #[derive(Debug, Clone)]
 pub enum CombatEffect {
     Damage(u32),
     Heal(u32),
     Defense(u32),
+    ShedDefense(u32),
 }
 
 #[derive(Component, Debug, Clone)]
@@ -118,11 +338,21 @@ impl CombatEffects {
                     }
                 },
                 CombatEffect::Defense(amount) => {
-                    spirit.defense += 1;
-                    if *amount > 1 {
-                        new_effects.push(CombatEffect::Defense(amount - 1));
+                    if spirit.defense > 6 {
+                        spirit.defense += 1;
+                        if *amount > 1 {
+                            new_effects.push(CombatEffect::Defense(amount - 1));
+                        }
                     }
                 },
+                CombatEffect::ShedDefense(amount) => {
+                    if spirit.defense > spirit.base_defense {
+                        spirit.defense -= 1;
+                        if *amount > 1 {
+                            new_effects.push(CombatEffect::ShedDefense(amount - 1));
+                        }
+                    }
+                }
             }
         }
         self.effects = new_effects;
@@ -148,6 +378,31 @@ impl SpiritType {
             SpiritType::Dark(level) => *level,
         }
     }
+    pub fn base_level(&self) -> SpiritType {
+        match self {
+            SpiritType::Fire(level) => SpiritType::Fire(0),
+            SpiritType::Water(level) => SpiritType::Water(0),
+            SpiritType::Slime(level) => SpiritType::Slime(0),
+            SpiritType::Light(level) => SpiritType::Light(0),
+            SpiritType::Dark(level) => SpiritType::Dark(0),
+        }
+    }
+    pub fn type_advantage(&self, other: &SpiritType) -> i32 {
+        match (self, other) {
+            (SpiritType::Fire(level), SpiritType::Slime(_)) => 1,
+            (SpiritType::Fire(level), SpiritType::Water(_)) => -1,
+            (SpiritType::Water(level), SpiritType::Fire(_)) => 1,
+            (SpiritType::Water(level), SpiritType::Slime(_)) => -1,
+            (SpiritType::Slime(level), SpiritType::Water(_)) => 1,
+            (SpiritType::Slime(level), SpiritType::Fire(_)) => -1,
+
+            (SpiritType::Light(level), SpiritType::Dark(_)) => *level as i32,
+            (SpiritType::Light(level), SpiritType::Light(_)) => -1,
+            (SpiritType::Dark(level), SpiritType::Light(_)) => *level as i32,
+            (SpiritType::Dark(level), SpiritType::Dark(_)) => -1,
+            _ => 0,
+        }
+    }
 }
 
 #[derive(Component, Debug, Clone)]
@@ -155,48 +410,140 @@ pub struct Spirit {
     pub element: SpiritType,
     pub max_health: u32,
     pub health: u32,
-    pub defense: u32,
+    pub defense: i32,
+    pub base_defense: i32,
+    pub attack: u32,
+    pub stamina: u32,
     pub moves: [Move; 4],
+}
+fn next_spirit(spirit: Spirit) -> Spirit {
+    match spirit.element {
+        SpiritType::Fire(level) => {
+            Spirit {
+                element: SpiritType::Fire(level + 1),
+                max_health: spirit.max_health * 4,
+                health: spirit.max_health * 4,
+                moves: spirit.moves,
+                attack: spirit.attack,
+                base_defense: spirit.base_defense,
+                stamina: spirit.stamina,
+                defense: spirit.base_defense,
+            }
+        },
+        SpiritType::Water(level) => {
+            Spirit {
+                element: SpiritType::Water(level + 1),
+                max_health: spirit.max_health * 4,
+                health: spirit.max_health * 4,
+                moves: spirit.moves,
+                attack: spirit.attack,
+                base_defense: spirit.base_defense,
+                stamina: spirit.stamina,
+                defense: spirit.base_defense,
+            }
+        },
+        SpiritType::Slime(level) => {
+            Spirit {
+                element: SpiritType::Slime(level + 1),
+                max_health: spirit.max_health * 4,
+                health: spirit.max_health * 4,
+                moves: spirit.moves,
+                attack: spirit.attack,
+                base_defense: spirit.base_defense,
+                stamina: spirit.stamina,
+                defense: spirit.base_defense,
+            }
+        },
+        SpiritType::Light(level) => {
+            Spirit {
+                element: SpiritType::Light(level + 1),
+                max_health: spirit.max_health * 4,
+                health: spirit.max_health * 4,
+                moves: spirit.moves,
+                attack: spirit.attack,
+                base_defense: spirit.base_defense,
+                stamina: spirit.stamina,
+                defense: spirit.base_defense,
+            }
+        },
+        SpiritType::Dark(level) => {
+            Spirit {
+                element: SpiritType::Dark(level + 1),
+                max_health: spirit.max_health * 4,
+                health: spirit.max_health * 4,
+                moves: spirit.moves,
+                attack: spirit.attack,
+                base_defense: spirit.base_defense,
+                stamina: spirit.stamina,
+                defense: spirit.base_defense,
+            }
+        },
+    }
 }
 
 impl Spirit {
     pub fn new(element: SpiritType, is_player: bool) -> Self {
         let mut rng = thread_rng();
-        let max_health = ((1 + element.level()) * 10) +
-            ((rng.gen::<f32>() + rng.gen::<f32>()) * 5.0) as u32;
         let mut moves = match (is_player, &element) {
             (false, _) => {
-                fire_moves()
+                enemy_moves()
             },
             (true, SpiritType::Fire(_)) => {
                 fire_moves()
             },
             (true, SpiritType::Water(_)) => {
-                fire_moves()
+                water_moves()
             },
             (true, SpiritType::Slime(_)) => {
-                fire_moves()
+                slime_moves()
             },
             (true, SpiritType::Dark(_)) => {
-                fire_moves()
+                dark_moves()
             },
             (true, SpiritType::Light(_)) => {
-                fire_moves()
+                light_moves()
             },
         };
+        let (max_health, base_defense, attack, stamina) = match is_player {
+            true => {
+                (
+                    (10.0 + (rng.gen::<f32>() + rng.gen::<f32>()) * 5.0) as u32,
+                    (rng.gen::<f32>() * 5.0) as i32,
+                    (rng.gen::<f32>() * 15.0) as u32,
+                    (rng.gen::<f32>() * 15.0) as u32,
+                )
+            },
+            false => {
+                (((1 + element.level()) * 10) +
+                    ((rng.gen::<f32>() + rng.gen::<f32>()) * 5.0) as u32,
+                2, 8, 8)
+            }
+        };
         rng.shuffle(&mut moves);
-        Spirit {
-            element,
+        let mut spirit = Spirit {
+            element: match is_player {
+                true => element.base_level(),
+                false => element.clone(),
+            },
             max_health,
             health: max_health,
             defense: 0,
+            base_defense,
+            attack,
+            stamina,
             moves: [
                 moves[0].clone(),
                 moves[1].clone(),
                 moves[2].clone(),
                 moves[3].clone(),
             ],
+        };
+        if is_player {
+            for _ in 0..(element.level()) {
+                spirit = next_spirit(spirit);
+            }
         }
+        spirit
     }
     pub fn level(&self) -> u32 {
         self.element.level()
@@ -213,16 +560,17 @@ pub struct Player {
     pub spirits: Vec<Spirit>,
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct BattleState {
     pub in_combat: bool,
     pub retreating: bool,
     pub enemy_attacking: Option<u32>,
     pub activate: bool,
-    pub animating: bool,
+    animating: bool,
     pub combat_move: Option<usize>,
     pub active_entity: Option<Entity>,
     pub encounter_entity: Option<Entity>,
+    pub notification: Option<String>,
 }
 
 impl BattleState {
@@ -236,16 +584,33 @@ impl BattleState {
             combat_move: None,
             active_entity: None,
             encounter_entity: None,
+            notification: None,
         }
     }
+    pub fn notifying(&self) -> bool {
+        self.notification != None
+    }
+    pub fn notify(&mut self, notification: String) {
+        self.notification = Some(notification);
+    }
+    pub fn clear_notification(&mut self) {
+        self.notification = None;
+    }
+    pub fn animating(&self) -> bool {
+        self.animating || self.notifying()
+    }
+    pub fn set_animating(&mut self, animating: bool) {
+        self.animating = animating;
+    }
     pub fn want_attack(&mut self) {
-        if self.enemy_attacking == None && !self.animating {
+        if self.enemy_attacking == None && !self.animating() {
             self.activate = true;
         }
     }
     pub fn finish_attack(&mut self) {
         self.activate = false;
         self.enemy_attacking = Some(2);
+        self.animating = true;
     }
     pub fn retreat(&mut self) {
         self.active_entity = None;
@@ -282,7 +647,7 @@ impl Encounter {
         }
         let mut remaining = 11;
         let mut spirit_counts = Vec::new();
-        for spirit_level in 0..(spirit_level + 1) {
+        for spirit_level in (0..(spirit_level + 1)).rev() {
             let count = (level - spirit_level + 1) as f32 * rng.gen::<f32>() * 5.0;
             let count = cmp::min(remaining, cmp::max(1, count as u32));
             spirit_counts.push((
@@ -541,6 +906,11 @@ fn tiles_for_rooms(room_size: u32, rooms: &HashMap<(u32, u32), Room>) -> HashMap
     tiles
 }
 
+#[derive(Component)]
+pub struct Stair {
+    pub depth: u32,
+}
+
 const ROOM_SIZE: u32 = 5;
 impl Level {
     pub fn new(depth: u32) -> Self {
@@ -548,8 +918,8 @@ impl Level {
         let entrance = (0, 0);
         let size = (5, 5);
         let exit =(
-            size.0 - (rng.gen::<f32>() * 2.0) as u32,
-            size.1 - (rng.gen::<f32>() * 2.0) as u32,
+            size.0 - (rng.gen::<f32>() * 2.0) as u32 - 1,
+            size.1 - (rng.gen::<f32>() * 2.0) as u32 - 1,
         );
         let rooms = gen_maze(size);
         println!("{:?}", rooms);
@@ -564,10 +934,52 @@ impl Level {
     }
 
     pub fn spawn_encounters(&self, world: &mut World) {
+        type ClearData<'a> = (
+            Entities<'a>,
+            WriteStorage<'a, WorldEntity>,
+            WriteStorage<'a, Player>,
+            WriteStorage<'a, Stair>,
+            ReadStorage<'a, Spirit>,
+        );
+        world.exec(|(entities, mut world_entities, mut player, mut stairs, spirits): ClearData| {
+            for (entity, world_entity, ()) in (&*entities, &world_entities, !&player).join() {
+                (*entities).delete(entity);
+            }
+            for (entity, _spirit) in (&*entities, &spirits).join() {
+                (*entities).delete(entity);
+            }
+            if self.depth == 0 {
+                for (entity, world_entity, _player) in (&*entities, &world_entities, &player).join() {
+                    (*entities).delete(entity);
+                }
+                let mut spirits = Vec::new();
+                spirits.push(Spirit::new(SpiritType::Fire(0), true));
+                spirits.push(Spirit::new(SpiritType::Water(0), true));
+                spirits.push(Spirit::new(SpiritType::Slime(0), true));
+                entities.build_entity()
+                    .with(WorldEntity { location: (2, 2) }, &mut world_entities)
+                    .with(Player { spirits: spirits }, &mut player)
+                    .build();
+            } else {
+                for (entity, world_entity, _player) in (&*entities, &mut world_entities, &player).join() {
+                    let ex = self.entrance.0 * ROOM_SIZE + (ROOM_SIZE / 2);
+                    let ey = self.entrance.1 * ROOM_SIZE + (ROOM_SIZE / 2);
+                    world_entity.location = (ex, ey);
+                }
+            }
+            let sx = self.exit.0 * ROOM_SIZE + (ROOM_SIZE / 2);
+            let sy = self.exit.1 * ROOM_SIZE + (ROOM_SIZE / 2);
+            entities.build_entity()
+                .with(WorldEntity {
+                    location: (sx, sy),
+                }, &mut world_entities)
+                .with(Stair { depth: self.depth + 1 }, &mut stairs)
+                .build();
+        });
         let mut rng = thread_rng();
         for ((x, y), _room) in self.rooms.iter() {
             if (*x, *y) != self.entrance && (*x, *y) != self.exit {
-                let odds = cmp::min(8, self.depth + 2);
+                let odds = cmp::min(8, self.depth + 4);
                 if rng.gen_bool(odds as f64 / 10.0) {
                     let tx = x * ROOM_SIZE + (ROOM_SIZE / 2);
                     let ty = y * ROOM_SIZE + (ROOM_SIZE / 2);
@@ -638,10 +1050,11 @@ pub enum PlayState {
         captured: Vec<SpiritType>,
         lost: Vec<SpiritType>,
     },
-    MainMenu,
+    Stairs(u32),
+    MainMenu(u32),
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum InputState {
     Rest,
     Move(Direction),
@@ -687,6 +1100,38 @@ pub fn required_spirits(element: &SpiritType) -> u32 {
         },
         SpiritType::Dark(level) => {
             3 + level * 4
+        }
+    }
+}
+
+pub struct Sounds {
+    pub fire: Source,
+    pub water: Source,
+    pub slime: Source,
+    pub light: Source,
+    pub dark: Source,
+    pub blip: Source,
+    pub collide: Source,
+    pub confirm: Source,
+    pub cancel: Source,
+    pub encounter: Source,
+    pub lose: Source,
+    pub pending: Vec<Source>,
+}
+
+impl Sounds {
+    pub fn sound_for_attack(&self, spirit: &Spirit) {
+        self.play(match spirit.element {
+            SpiritType::Fire(_) => &self.fire,
+            SpiritType::Water(_) => &self.water,
+            SpiritType::Slime(_) => &self.slime,
+            SpiritType::Light(_) => &self.light,
+            SpiritType::Dark(_) => &self.dark,
+        });
+    }
+    pub fn play(&self, sound: &Source) {
+        if !sound.playing() {
+            sound.play();
         }
     }
 }
